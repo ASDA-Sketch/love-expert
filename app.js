@@ -1120,15 +1120,15 @@ function testConnection() {
     btn.textContent = '测试中...';
     btn.disabled = true;
 
-    if (!window.ai || !window.ai.callAI) {
-        alert('⚠️ AI模块未加载');
+    if (!window.ai || !window.ai.testConnection) {
+        alert('⚠️ AI模块未加载，请强制刷新页面（Ctrl+F5）');
         btn.textContent = original;
         btn.disabled = false;
         return;
     }
 
-    window.ai.callAI('请回复"连接成功"四个字', '测试连接').then(function(result) {
-        alert('✅ 连接成功！\n' + String(result || '').slice(0, 100));
+    window.ai.testConnection().then(function(result) {
+        alert('✅ ' + result);
     }).catch(function(err) {
         alert('❌ 连接失败：' + (err.message || '未知错误'));
     }).then(function() {
