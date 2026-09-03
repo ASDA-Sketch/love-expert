@@ -1063,8 +1063,8 @@ function refreshProgressReminder() {
 
 function openSettings() {
     var config = getConfig();
-    $('apiKey').value = config.apiKey || '';
-    $('baseUrl').value = config.baseUrl || '';
+    $('apiKey').value = config.api_key || '';
+    $('baseUrl').value = config.base_url || '';
     $('model').value = config.model || '';
     $('settingsModal').classList.remove('hidden');
 }
@@ -1127,7 +1127,11 @@ function testConnection() {
         return;
     }
 
-    window.ai.testConnection().then(function(result) {
+    window.ai.testConnection({
+        api_key: config.apiKey,
+        base_url: config.baseUrl,
+        model: config.model
+    }).then(function(result) {
         alert('✅ ' + result);
     }).catch(function(err) {
         alert('❌ 连接失败：' + (err.message || '未知错误'));
