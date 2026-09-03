@@ -2,60 +2,62 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#e8745a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="恋爱聊天助手">
     <meta name="description" content="AI驱动的恋爱聊天助手，帮你分析对话、推荐话题、生成高情商回复">
-    <link rel="manifest" href="manifest.json?v=5">
+    <link rel="manifest" href="manifest.json?v=6">
     <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="icon" href="icon-192.png">
-    <link rel="stylesheet" href="style.css?v=5">
+    <link rel="stylesheet" href="style.css?v=6">
     <title>恋爱聊天助手</title>
 </head>
 <body>
-    <!-- Header -->
-    <header class="app-header">
-        <div class="header-left">
-            <h1 class="app-title">恋爱聊天助手</h1>
-            <span id="modeBadge" class="mode-badge">Demo</span>
-        </div>
-        <div class="header-right">
-            <button id="mobileAccessBtn" class="header-btn" title="移动端安装">📱</button>
-            <button id="settingsBtn" class="header-btn" title="设置">⚙️</button>
-        </div>
-    </header>
-
-    <!-- Main Content -->
-    <div class="main-content">
-        <!-- Progress Reminder Card -->
-        <div id="progressCard" class="progress-card hidden">
-            <div class="progress-card-header">
-                <span class="progress-icon">💡</span>
-                <span class="progress-title">关系推进提醒</span>
-                <button id="refreshReminderBtn" class="refresh-btn">🔄</button>
+    <div class="app">
+        <!-- Header (desktop style: white bg) -->
+        <header class="app-header">
+            <div class="header-left">
+                <h1 class="app-title">恋爱聊天助手</h1>
+                <span id="modeBadge" class="mode-badge">Demo</span>
+                <span id="modelStatus" class="model-status model-status-disconnected">未连接</span>
             </div>
-            <div id="progressText" class="progress-text">加载中...</div>
-        </div>
+            <div class="header-right">
+                <!-- Mobile nav buttons (hidden on desktop) -->
+                <button id="tabContacts" class="nav-btn active" data-panel="contacts" title="联系人">☰</button>
+                <button id="tabChat" class="nav-btn" data-panel="chat" title="聊天">💬</button>
+                <button id="tabAnalysis" class="nav-btn" data-panel="analysis" title="分析">📊</button>
+                <button id="mobileAccessBtn" class="icon-btn" title="移动端安装">📱</button>
+                <button id="settingsBtn" class="icon-btn" title="设置">⚙️</button>
+            </div>
+        </header>
 
-        <!-- Panel Container -->
-        <div class="panel-container">
-            <!-- Contacts Panel -->
-            <section id="contactsPanel" class="panel active">
+        <!-- Three-column layout (desktop) / single panel (mobile) -->
+        <main class="main-content">
+            <!-- Left: Contacts -->
+            <section id="contactsPanel" class="panel contacts-col active">
                 <div class="panel-header">
                     <h2>联系人</h2>
-                    <button id="newContactBtn" class="add-btn">＋ 新建</button>
+                    <button id="newContactBtn" class="add-btn">+ 新建</button>
                 </div>
                 <div id="contactsList" class="contacts-list"></div>
             </section>
 
-            <!-- Chat Panel -->
-            <section id="chatPanel" class="panel">
-                <div id="chatHeader" class="chat-header">
+            <!-- Middle: Chat -->
+            <section id="chatPanel" class="panel chat-col active">
+                <div id="chatHeader" class="panel-header chat-header">
                     <span id="chatContactName" class="chat-contact-name">选择联系人</span>
                     <span id="chatStageTag" class="stage-tag"></span>
-                    <button id="editContactBtn" class="header-btn" title="编辑联系人">✏️</button>
+                    <button id="editContactBtn" class="icon-btn" title="编辑联系人">✏️</button>
+                </div>
+                <!-- Progress Reminder -->
+                <div id="progressCard" class="progress-card hidden">
+                    <div class="progress-card-inner">
+                        <span class="progress-icon">💡</span>
+                        <span id="progressText" class="progress-text">加载中...</span>
+                    </div>
+                    <button id="refreshReminderBtn" class="refresh-btn">🔄</button>
                 </div>
                 <div id="messagesArea" class="messages-area">
                     <p class="empty-hint">请从联系人列表选择一位</p>
@@ -75,37 +77,21 @@
                 </div>
             </section>
 
-            <!-- Analysis Panel -->
-            <section id="analysisPanel" class="panel">
+            <!-- Right: Analysis -->
+            <section id="analysisPanel" class="panel analysis-col active">
                 <div class="panel-header">
                     <h2>分析结果</h2>
                 </div>
                 <div id="analysisContent" class="analysis-content">
-                    <p class="empty-hint">点击聊天界面的"分析对话"或"推荐话题"开始</p>
+                    <p class="empty-hint">点击"分析对话"或"推荐话题"开始</p>
                 </div>
             </section>
-        </div>
+        </main>
     </div>
 
-    <!-- Bottom Tab Bar -->
-    <nav class="tab-bar">
-        <button id="tabContacts" class="tab-btn active" data-panel="contacts">
-            <span class="tab-icon">☰</span>
-            <span class="tab-label">联系人</span>
-        </button>
-        <button id="tabChat" class="tab-btn" data-panel="chat">
-            <span class="tab-icon">💬</span>
-            <span class="tab-label">聊天</span>
-        </button>
-        <button id="tabAnalysis" class="tab-btn" data-panel="analysis">
-            <span class="tab-icon">📊</span>
-            <span class="tab-label">分析</span>
-        </button>
-    </nav>
-
-    <!-- Contact Modal -->
+    <!-- Contact Modal (centered overlay) -->
     <div id="contactModal" class="modal-overlay hidden">
-        <div class="modal-content bottom-sheet">
+        <div class="modal-content">
             <div class="modal-header">
                 <h3 id="contactModalTitle">新建联系人</h3>
                 <button class="modal-close" data-close="contactModal">✕</button>
@@ -154,7 +140,7 @@
 
     <!-- Batch Paste Modal -->
     <div id="batchModal" class="modal-overlay hidden">
-        <div class="modal-content bottom-sheet">
+        <div class="modal-content">
             <div class="modal-header">
                 <h3>批量粘贴对话</h3>
                 <button class="modal-close" data-close="batchModal">✕</button>
@@ -174,7 +160,7 @@
 
     <!-- Settings Modal -->
     <div id="settingsModal" class="modal-overlay hidden">
-        <div class="modal-content bottom-sheet">
+        <div class="modal-content">
             <div class="modal-header">
                 <h3>设置</h3>
                 <button class="modal-close" data-close="settingsModal">✕</button>
@@ -212,7 +198,7 @@
 
     <!-- Reply Panel Modal -->
     <div id="replyModal" class="modal-overlay hidden">
-        <div class="modal-content bottom-sheet reply-sheet">
+        <div class="modal-content reply-sheet">
             <div class="modal-header">
                 <h3>智能回复</h3>
                 <button class="modal-close" data-close="replyModal">✕</button>
@@ -254,10 +240,10 @@
     </div>
 
     <!-- Scripts (loaded in order) -->
-    <script src="db.js?v=5"></script>
-    <script src="prompts.js?v=5"></script>
-    <script src="demo_data.js?v=5"></script>
-    <script src="ai.js?v=5"></script>
-    <script src="app.js?v=5"></script>
+    <script src="db.js?v=6"></script>
+    <script src="prompts.js?v=6"></script>
+    <script src="demo_data.js?v=6"></script>
+    <script src="ai.js?v=6"></script>
+    <script src="app.js?v=6"></script>
 </body>
 </html>
