@@ -346,8 +346,13 @@ async function testConnection(config) {
     throw new Error('HTTP ' + response.status + ': ' + errText.substring(0, 200));
   }
 
-  var data = await response.json();
-  return '连接成功！模型：' + (data.model || cfg.model);
+  // 200 OK — try to read model name, don't fail if body is unreadable
+  try {
+    var data = await response.json();
+    return '连接成功！模型：' + (data.model || cfg.model);
+  } catch (e) {
+    return '连接成功！API 可正常使用。';
+  }
 }
 
 // ============================================================
