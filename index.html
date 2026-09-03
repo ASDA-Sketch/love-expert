@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#e8745a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="恋爱聊天助手">
+    <meta name="description" content="AI驱动的恋爱聊天助手，帮你分析对话、推荐话题、生成高情商回复">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="icon" href="icon-192.png">
+    <link rel="stylesheet" href="style.css">
+    <title>恋爱聊天助手</title>
+</head>
+<body>
+    <!-- Header -->
+    <header class="app-header">
+        <div class="header-left">
+            <h1 class="app-title">恋爱聊天助手</h1>
+            <span id="modeBadge" class="mode-badge">Demo</span>
+        </div>
+        <div class="header-right">
+            <button id="mobileAccessBtn" class="header-btn" title="移动端安装">📱</button>
+            <button id="settingsBtn" class="header-btn" title="设置">⚙️</button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Progress Reminder Card -->
+        <div id="progressCard" class="progress-card hidden">
+            <div class="progress-card-header">
+                <span class="progress-icon">💡</span>
+                <span class="progress-title">关系推进提醒</span>
+                <button id="refreshReminderBtn" class="refresh-btn">🔄</button>
+            </div>
+            <div id="progressText" class="progress-text">加载中...</div>
+        </div>
+
+        <!-- Panel Container -->
+        <div class="panel-container">
+            <!-- Contacts Panel -->
+            <section id="contactsPanel" class="panel active">
+                <div class="panel-header">
+                    <h2>联系人</h2>
+                    <button id="newContactBtn" class="add-btn">＋ 新建</button>
+                </div>
+                <div id="contactsList" class="contacts-list"></div>
+            </section>
+
+            <!-- Chat Panel -->
+            <section id="chatPanel" class="panel">
+                <div id="chatHeader" class="chat-header">
+                    <span id="chatContactName" class="chat-contact-name">选择联系人</span>
+                    <span id="chatStageTag" class="stage-tag"></span>
+                    <button id="editContactBtn" class="header-btn" title="编辑联系人">✏️</button>
+                </div>
+                <div id="messagesArea" class="messages-area">
+                    <p class="empty-hint">请从联系人列表选择一位</p>
+                </div>
+                <div class="chat-input-area">
+                    <div class="chat-input-row">
+                        <input type="text" id="messageInput" class="message-input" placeholder="输入消息内容..." autocomplete="off">
+                        <button id="sendThemBtn" class="send-btn them-btn">对方说</button>
+                        <button id="sendMeBtn" class="send-btn me-btn">我说</button>
+                    </div>
+                    <div class="chat-toolbar">
+                        <button id="analyzeBtn" class="tool-btn">🔍 分析对话</button>
+                        <button id="topicsBtn" class="tool-btn">💡 推荐话题</button>
+                        <button id="batchPasteBtn" class="tool-btn">📋 批量粘贴</button>
+                        <button id="clearChatBtn" class="tool-btn danger-text">🗑️ 清空</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Analysis Panel -->
+            <section id="analysisPanel" class="panel">
+                <div class="panel-header">
+                    <h2>分析结果</h2>
+                </div>
+                <div id="analysisContent" class="analysis-content">
+                    <p class="empty-hint">点击聊天界面的"分析对话"或"推荐话题"开始</p>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Bottom Tab Bar -->
+    <nav class="tab-bar">
+        <button id="tabContacts" class="tab-btn active" data-panel="contacts">
+            <span class="tab-icon">☰</span>
+            <span class="tab-label">联系人</span>
+        </button>
+        <button id="tabChat" class="tab-btn" data-panel="chat">
+            <span class="tab-icon">💬</span>
+            <span class="tab-label">聊天</span>
+        </button>
+        <button id="tabAnalysis" class="tab-btn" data-panel="analysis">
+            <span class="tab-icon">📊</span>
+            <span class="tab-label">分析</span>
+        </button>
+    </nav>
+
+    <!-- Contact Modal -->
+    <div id="contactModal" class="modal-overlay hidden">
+        <div class="modal-content bottom-sheet">
+            <div class="modal-header">
+                <h3 id="contactModalTitle">新建联系人</h3>
+                <button class="modal-close" data-close="contactModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>姓名</label>
+                    <input type="text" id="contactName" placeholder="对方昵称">
+                </div>
+                <div class="form-group">
+                    <label>关系阶段</label>
+                    <select id="contactStage">
+                        <option value="刚认识">刚认识</option>
+                        <option value="初步了解">初步了解</option>
+                        <option value="暧昧期">暧昧期</option>
+                        <option value="约会阶段">约会阶段</option>
+                        <option value="稳定交往">稳定交往</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>标签（逗号分隔）</label>
+                    <input type="text" id="contactTags" placeholder="如：活泼、爱旅游">
+                </div>
+                <div class="form-group">
+                    <label>聊天渠道</label>
+                    <select id="contactChannel">
+                        <option value="微信">微信</option>
+                        <option value="QQ">QQ</option>
+                        <option value="短信">短信</option>
+                        <option value="朋友介绍">朋友介绍</option>
+                        <option value="社交软件">社交软件</option>
+                        <option value="其他">其他</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>备注</label>
+                    <textarea id="contactNote" rows="3" placeholder="性格特点、兴趣爱好等"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="deleteContactBtn" class="btn-danger hidden">删除联系人</button>
+                <button id="saveContactBtn" class="btn-primary">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Batch Paste Modal -->
+    <div id="batchModal" class="modal-overlay hidden">
+        <div class="modal-content bottom-sheet">
+            <div class="modal-header">
+                <h3>批量粘贴对话</h3>
+                <button class="modal-close" data-close="batchModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>对话内容</label>
+                    <textarea id="batchText" rows="10" placeholder="格式示例：&#10;对方：你好呀&#10;我：嗨，最近怎么样&#10;对方：还行，你呢"></textarea>
+                    <p class="format-hint">每行一条消息，以"对方："或"我："开头</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="importBatchBtn" class="btn-primary">导入对话</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal-overlay hidden">
+        <div class="modal-content bottom-sheet">
+            <div class="modal-header">
+                <h3>设置</h3>
+                <button class="modal-close" data-close="settingsModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>API Key</label>
+                    <input type="password" id="apiKey" placeholder="输入 API Key">
+                </div>
+                <div class="form-group">
+                    <label>Base URL</label>
+                    <input type="text" id="baseUrl" placeholder="https://api.deepseek.com/v1">
+                </div>
+                <div class="form-group">
+                    <label>模型</label>
+                    <input type="text" id="model" placeholder="deepseek-chat">
+                </div>
+                <div class="form-group">
+                    <label>快速预设</label>
+                    <div class="presets">
+                        <button class="preset-btn" data-preset="deepseek">DeepSeek</button>
+                        <button class="preset-btn" data-preset="kimi">Kimi</button>
+                        <button class="preset-btn" data-preset="qwen">通义千问</button>
+                        <button class="preset-btn" data-preset="doubao">豆包</button>
+                        <button class="preset-btn" data-preset="openai">OpenAI</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="testConnBtn" class="btn-secondary">测试连接</button>
+                <button id="saveConfigBtn" class="btn-primary">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reply Panel Modal -->
+    <div id="replyModal" class="modal-overlay hidden">
+        <div class="modal-content bottom-sheet reply-sheet">
+            <div class="modal-header">
+                <h3>智能回复</h3>
+                <button class="modal-close" data-close="replyModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>对方消息</label>
+                    <div id="quotedMessageBlock" class="quoted-message"></div>
+                </div>
+                <div class="form-group">
+                    <label>选择回复风格</label>
+                    <div class="style-buttons">
+                        <button class="style-btn" data-style="humor">😂幽默调侃</button>
+                        <button class="style-btn" data-style="sincere">💚真诚走心</button>
+                        <button class="style-btn" data-style="tease">😏俏皮撩拨</button>
+                        <button class="style-btn" data-style="flirty">🔥暧昧推进</button>
+                        <button class="style-btn" data-style="empathy">🤗关心安慰</button>
+                        <button class="style-btn" data-style="defuse">🛡️高情商化解</button>
+                        <button class="style-btn" data-style="guide_topic">🧭引导话题</button>
+                        <button class="style-btn" data-style="curious">👀制造好奇</button>
+                        <button class="style-btn" data-style="challenge">⚔️适度挑战</button>
+                        <button class="style-btn" data-style="steady">🧓稳重得体</button>
+                        <button class="style-btn" data-style="appreciate">🌟赞美欣赏</button>
+                        <button class="style-btn" data-style="resonance">💞共鸣认同</button>
+                        <button class="style-btn" data-style="cool">😎高冷神秘</button>
+                        <button class="style-btn" data-style="sunny">🌻阳光开朗</button>
+                    </div>
+                </div>
+                <div id="customIntentGroup" class="form-group hidden">
+                    <label>自定义话题方向</label>
+                    <input type="text" id="customIntent" placeholder="如：旅行、美食、电影...">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="generateRepliesBtn" class="btn-primary">生成回复</button>
+            </div>
+            <div id="repliesContent" class="replies-content"></div>
+        </div>
+    </div>
+
+    <!-- Scripts (loaded in order) -->
+    <script src="db.js"></script>
+    <script src="prompts.js"></script>
+    <script src="demo_data.js"></script>
+    <script src="ai.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
