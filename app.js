@@ -98,9 +98,14 @@ function showError(el, msg) {
 
 function getConfig() {
     try {
-        return JSON.parse(localStorage.getItem('aiConfig') || '{}');
+        var cfg = JSON.parse(localStorage.getItem('aiConfig') || '{}');
+        return {
+            apiKey: cfg.apiKey || '',
+            baseUrl: cfg.baseUrl || '',
+            model: cfg.model || ''
+        };
     } catch (e) {
-        return {};
+        return { apiKey: '', baseUrl: '', model: '' };
     }
 }
 
@@ -1063,8 +1068,8 @@ function refreshProgressReminder() {
 
 function openSettings() {
     var config = getConfig();
-    $('apiKey').value = config.api_key || '';
-    $('baseUrl').value = config.base_url || '';
+    $('apiKey').value = config.apiKey || '';
+    $('baseUrl').value = config.baseUrl || '';
     $('model').value = config.model || '';
     $('settingsModal').classList.remove('hidden');
 }
