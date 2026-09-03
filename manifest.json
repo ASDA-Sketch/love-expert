@@ -1,0 +1,26 @@
+{
+  "name": "恋爱聊天助手",
+  "short_name": "恋爱助手",
+  "description": "AI 驱动的恋爱聊天回复专家，帮你生成自然口语的回复、推荐话题、分析对方心理",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fff8f3",
+  "theme_color": "#e8745a",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
