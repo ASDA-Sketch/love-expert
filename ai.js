@@ -311,9 +311,9 @@ async function getProgressReminder(contactId) {
  * 测试 API 连接（发一个最小 POST 请求）
  * @returns {Promise<string>} 成功信息
  */
-async function testConnection() {
-  var cfg = getConfig();
-  if (!cfg.api_key || !cfg.api_key.trim()) {
+async function testConnection(config) {
+  var cfg = config || getConfig();
+  if (!cfg || !cfg.api_key || !cfg.api_key.trim()) {
     throw new Error('请先填写 API Key');
   }
 
