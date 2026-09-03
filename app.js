@@ -118,11 +118,13 @@ function init() {
         loadContacts();
         setupEventListeners();
         updateModeBadge();
+        updateModelStatus();
     }).catch(function(err) {
         console.error('Init error:', err);
         loadContacts();
         setupEventListeners();
         updateModeBadge();
+        updateModelStatus();
     });
 
     if ('serviceWorker' in navigator) {
@@ -167,8 +169,8 @@ document.addEventListener('DOMContentLoaded', init);
 /* ===== Event Listeners ===== */
 
 function setupEventListeners() {
-    // Tab buttons
-    var tabs = document.querySelectorAll('.tab-btn');
+    // Nav buttons (in header, mobile only)
+    var tabs = document.querySelectorAll('.nav-btn');
     for (var i = 0; i < tabs.length; i++) {
         (function(tab) {
             tab.addEventListener('click', function() {
@@ -291,7 +293,7 @@ function switchPanel(panel) {
     var target = $(panel + 'Panel');
     if (target) target.classList.add('active');
 
-    var tabs = document.querySelectorAll('.tab-btn');
+    var tabs = document.querySelectorAll('.nav-btn');
     for (var t = 0; t < tabs.length; t++) {
         tabs[t].classList.remove('active');
     }
@@ -1090,6 +1092,7 @@ function saveConfig() {
     };
     localStorage.setItem('aiConfig', JSON.stringify(config));
     updateModeBadge();
+    updateModelStatus();
     $('settingsModal').classList.add('hidden');
 }
 
@@ -1102,6 +1105,19 @@ function updateModeBadge() {
     } else {
         badge.textContent = 'Demo';
         badge.classList.remove('live');
+    }
+}
+
+function updateModelStatus() {
+    var config = getConfig();
+    var status = $('modelStatus');
+    if (!status) return;
+    if (config.apiKey && config.model) {
+        status.textContent = '✅ 已连接：' + config.model;
+        status.className = 'model-status model-status-connected';
+    } else {
+        status.textContent = '未连接';
+        status.className = 'model-status model-status-disconnected';
     }
 }
 
@@ -1138,6 +1154,7 @@ function testConnection() {
         model: config.model
     }).then(function(result) {
         alert('✅ ' + result);
+        updateModelStatus();
     }).catch(function(err) {
         alert('❌ 连接失败：' + (err.message || '未知错误'));
     }).then(function() {
