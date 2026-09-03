@@ -1,5 +1,5 @@
 // Service Worker - 离线缓存
-const CACHE_NAME = 'love-expert-v1';
+const CACHE_NAME = 'love-expert-v2';
 const ASSETS = [
   './',
   './index.html',
