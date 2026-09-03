@@ -304,6 +304,53 @@ async function getProgressReminder(contactId) {
 }
 
 // ============================================================
+// 测试连接
+// ============================================================
+
+/**
+ * 测试 API 连接（发一个最小 POST 请求）
+ * @returns {Promise<string>} 成功信息
+ */
+async function testConnection() {
+  var cfg = getConfig();
+  if (!cfg.api_key || !cfg.api_key.trim()) {
+    throw new Error('请先填写 API Key');
+  }
+
+  var url = cfg.base_url.replace(/\/+$/, '') + '/chat/completions';
+
+  var response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + cfg.api_key.trim()
+    },
+    body: JSON.stringify({
+      model: cfg.model || 'deepseek-chat',
+      max_tokens: 1,
+      messages: [{ role: 'user', content: 'hi' }]
+    })
+  });
+
+  if (response.status === 401) {
+    throw new Error('API Key 无效（401），请检查 Key 是否正确');
+  }
+  if (response.status === 405) {
+    throw new Error('HTTP 405：请检查 Base URL 是否正确（应为 https://api.deepseek.com/v1，不要带 /chat/completions）');
+  }
+  if (response.status === 404) {
+    throw new Error('HTTP 404：地址不存在，请检查 Base URL（应为 https://api.deepseek.com/v1）');
+  }
+  if (!response.ok) {
+    var errText = await response.text();
+    throw new Error('HTTP ' + response.status + ': ' + errText.substring(0, 200));
+  }
+
+  var data = await response.json();
+  return '连接成功！模型：' + (data.model || cfg.model);
+}
+
+// ============================================================
 // 错误处理
 // ============================================================
 
@@ -352,6 +399,7 @@ window.ai = {
   saveConfig: saveConfig,
   extractJSON: extractJSON,
   callAI: callAI,
+  testConnection: testConnection,
   recommendTopics: recommendTopics,
   analyzeConversation: analyzeConversation,
   generateReplies: generateReplies,
