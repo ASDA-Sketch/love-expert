@@ -121,6 +121,6 @@ window.DEMO_PROGRESS_REMINDER = {
 
 // 演示联系人（首次启动时自动导入）
 window.demoContacts = [
-    {name: "小美", stage: "暧昧期", tags: "活泼/开朗/爱吃", channel: "朋友介绍", note: "超级吃货，喜欢探店，最近在研究烘焙"},
+    {name: "小美", stage: "暧昧期", tags: "活泼/开朗/爱吃", channel: "朋友介绍", note: "超级吃货，喜欢探店打卡"},
     {name: "小雨", stage: "刚认识", tags: "内向/安静", channel: "社交软件", note: "最近工作压力大，经常加班，比较慢热"},
 ];
