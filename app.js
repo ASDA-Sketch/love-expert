@@ -112,6 +112,22 @@ function getConfig() {
 /* ===== Init ===== */
 
 function init() {
+    // 先检查激活状态
+    if (window.auth && window.auth.isActivated()) {
+        startApp();
+    } else {
+        setupActivation();
+    }
+}
+
+function startApp() {
+    // 隐藏激活码覆盖层
+    var overlay = $('activationOverlay');
+    if (overlay) overlay.classList.add('hidden');
+
+    // 确保激活的 config 已同步
+    if (window.auth) window.auth.isActivated();
+
     initDB().then(function() {
         return loadDemoDataIfNeeded();
     }).then(function() {
@@ -129,7 +145,6 @@ function init() {
 
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js').then(function(reg) {
-            // 强制更新：如果有等待中的 SW，立即激活
             if (reg.waiting) {
                 reg.waiting.postMessage('skipWaiting');
             }
@@ -146,11 +161,42 @@ function init() {
         }).catch(function(err) {
             console.log('Service Worker registration failed:', err);
         });
-        // SW 控制权变化时刷新页面
         navigator.serviceWorker.addEventListener('controllerchange', function() {
             window.location.reload();
         });
     }
+}
+
+function setupActivation() {
+    var input = $('activationInput');
+    var btn = $('activateBtn');
+    var errorDiv = $('activationError');
+    if (!input || !btn) return;
+
+    function tryActivate() {
+        var code = input.value.trim();
+        if (!code) {
+            errorDiv.textContent = '请输入激活码';
+            return;
+        }
+        if (window.auth && window.auth.applyActivation(code)) {
+            errorDiv.textContent = '';
+            startApp();
+        } else {
+            errorDiv.textContent = '激活码无效';
+            input.value = '';
+            input.focus();
+        }
+    }
+
+    btn.addEventListener('click', tryActivate);
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            tryActivate();
+        }
+    });
+    input.focus();
 }
 
 function initDB() {
@@ -1117,7 +1163,15 @@ function refreshProgressReminder() {
 
 function openSettings() {
     var config = getConfig();
-    $('apiKey').value = config.apiKey || '';
+    if (window.auth && window.auth.isActivated()) {
+        $('apiKey').value = '';
+        $('apiKey').placeholder = '已由激活码配置';
+        $('apiKey').disabled = true;
+    } else {
+        $('apiKey').value = config.apiKey || '';
+        $('apiKey').placeholder = '输入 API Key';
+        $('apiKey').disabled = false;
+    }
     $('baseUrl').value = config.baseUrl || '';
     $('model').value = config.model || '';
     $('settingsModal').classList.remove('hidden');
@@ -1132,8 +1186,15 @@ function applyPreset(key) {
 }
 
 function saveConfig() {
+    var apiKey;
+    if (window.auth && window.auth.isActivated()) {
+        // 激活模式下保留已有 key，不从禁用字段读取
+        apiKey = getConfig().apiKey;
+    } else {
+        apiKey = $('apiKey').value.trim();
+    }
     var config = {
-        apiKey: $('apiKey').value.trim(),
+        apiKey: apiKey,
         baseUrl: $('baseUrl').value.trim(),
         model: $('model').value.trim()
     };
@@ -1146,7 +1207,7 @@ function saveConfig() {
 function updateModeBadge() {
     var config = getConfig();
     var badge = $('modeBadge');
-    if (config.apiKey) {
+    if ((window.auth && window.auth.isActivated()) || config.apiKey) {
         badge.textContent = 'Live';
         badge.classList.add('live');
     } else {
@@ -1156,21 +1217,32 @@ function updateModeBadge() {
 }
 
 function updateModelStatus() {
-    var config = getConfig();
     var status = $('modelStatus');
     if (!status) return;
-    if (config.apiKey && config.model) {
-        status.textContent = '✅ 已连接：' + config.model;
+    if (window.auth && window.auth.isActivated()) {
+        status.textContent = '✅ 已激活';
         status.className = 'model-status model-status-connected';
     } else {
-        status.textContent = '未连接';
-        status.className = 'model-status model-status-disconnected';
+        var config = getConfig();
+        if (config.apiKey && config.model) {
+            status.textContent = '✅ 已连接：' + config.model;
+            status.className = 'model-status model-status-connected';
+        } else {
+            status.textContent = '未连接';
+            status.className = 'model-status model-status-disconnected';
+        }
     }
 }
 
 function testConnection() {
+    var apiKey;
+    if (window.auth && window.auth.isActivated()) {
+        apiKey = getConfig().apiKey;
+    } else {
+        apiKey = $('apiKey').value.trim();
+    }
     var config = {
-        apiKey: $('apiKey').value.trim(),
+        apiKey: apiKey,
         baseUrl: $('baseUrl').value.trim(),
         model: $('model').value.trim()
     };
