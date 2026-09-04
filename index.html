@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="恋爱聊天助手">
     <meta name="description" content="AI驱动的恋爱聊天助手，帮你分析对话、推荐话题、生成高情商回复">
-    <link rel="manifest" href="manifest.json?v=9">
+    <link rel="manifest" href="manifest.json?v=10">
     <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="icon" href="icon-192.png">
     <link rel="stylesheet" href="style.css?v=9">
@@ -19,7 +19,7 @@
         if ('serviceWorker' in navigator) {
             // 检查是否需要强制更新
             var FORCE_UPDATE_KEY = 'love_expert_sw_version';
-            var NEW_VERSION = 'v9';
+            var NEW_VERSION = 'v10';
             var currentVersion = localStorage.getItem(FORCE_UPDATE_KEY);
             if (currentVersion !== NEW_VERSION) {
                 // 版本不匹配：注销所有 SW + 清空所有缓存
@@ -270,10 +270,10 @@
     </div>
 
     <!-- Scripts (loaded in order) -->
-    <script src="db.js?v=9"></script>
-    <script src="prompts.js?v=9"></script>
-    <script src="demo_data.js?v=9"></script>
-    <script src="ai.js?v=9"></script>
-    <script src="app.js?v=9"></script>
+    <script src="db.js?v=10"></script>
+    <script src="prompts.js?v=10"></script>
+    <script src="demo_data.js?v=10"></script>
+    <script src="ai.js?v=10"></script>
+    <script src="app.js?v=10"></script>
 </body>
 </html>
