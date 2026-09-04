@@ -720,30 +720,53 @@ function importBatch() {
         return;
     }
 
-    var lines = text.split('\n');
-    var promises = [];
+    // 获取联系人名字用于解析
+    var contactName = '';
+    if (window.getContact) {
+        window.getContact(currentContactId).then(function(contact) {
+            contactName = contact ? contact.name : '';
+            doImport(text, contactName);
+        }).catch(function() {
+            doImport(text, '');
+        });
+    } else {
+        doImport(text, '');
+    }
+}
 
-    for (var i = 0; i < lines.length; i++) {
-        var line = lines[i].trim();
-        if (!line) continue;
+function doImport(text, contactName) {
+    var parsed;
 
-        var role, content;
-        if (line.indexOf('对方：') === 0 || line.indexOf('对方:') === 0) {
-            role = 'them';
-            content = line.replace(/^对方[：:]\s*/, '');
-        } else if (line.indexOf('我：') === 0 || line.indexOf('我:') === 0) {
-            role = 'me';
-            content = line.replace(/^我[：:]\s*/, '');
-        } else {
-            continue;
+    // 使用 import.js 的解析器（如果加载了）
+    if (window.parseChatHistory) {
+        parsed = window.parseChatHistory(text, contactName);
+    } else {
+        // 回退到旧的简单解析
+        parsed = [];
+        var lines = text.split('\n');
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i].trim();
+            if (!line) continue;
+            if (line.indexOf('对方：') === 0 || line.indexOf('对方:') === 0) {
+                parsed.push({role: 'them', content: line.replace(/^对方[：:]\s*/, '')});
+            } else if (line.indexOf('我：') === 0 || line.indexOf('我:') === 0) {
+                parsed.push({role: 'me', content: line.replace(/^我[：:]\s*/, '')});
+            }
         }
-
-        promises.push(window.db.addMessage(currentContactId, role, content));
     }
 
-    if (promises.length === 0) {
-        alert('未解析到有效对话，请检查格式');
+    if (parsed.length === 0) {
+        alert('未解析到有效对话，请检查格式\n\n支持：\n1. 名字+时间换行格式\n2. 名字: 内容格式\n3. 纯对话交替格式');
         return;
+    }
+
+    // 按顺序导入，保持时间戳递增
+    var baseTime = Date.now() - parsed.length * 60000; // 每条间隔1分钟
+    var promises = [];
+    for (var i = 0; i < parsed.length; i++) {
+        var msg = parsed[i];
+        var ts = new Date(baseTime + i * 60000).toISOString();
+        promises.push(window.db.addMessage(currentContactId, msg.role, msg.content, ts));
     }
 
     Promise.all(promises).then(function() {
