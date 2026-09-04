@@ -8,10 +8,10 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="恋爱聊天助手">
     <meta name="description" content="AI驱动的恋爱聊天助手，帮你分析对话、推荐话题、生成高情商回复">
-    <link rel="manifest" href="manifest.json?v=14">
+    <link rel="manifest" href="manifest.json?v=15">
     <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="icon" href="icon-192.png">
-    <link rel="stylesheet" href="style.css?v=14">
+    <link rel="stylesheet" href="style.css?v=15">
     <title>恋爱聊天助手</title>
     <script>
     // 强制清理旧 Service Worker + 缓存，确保加载最新代码
@@ -269,12 +269,25 @@
         </div>
     </div>
 
+    <!-- Activation Code Overlay -->
+    <div id="activationOverlay" class="activation-overlay">
+        <div class="activation-card">
+            <div class="activation-icon">🔐</div>
+            <h2 class="activation-title">请输入激活码</h2>
+            <p class="activation-hint">输入激活码以解锁全部功能</p>
+            <input type="text" id="activationInput" class="activation-input" placeholder="输入激活码" autocomplete="off">
+            <button id="activateBtn" class="activation-btn">激 活</button>
+            <div id="activationError" class="activation-error"></div>
+        </div>
+    </div>
+
     <!-- Scripts (loaded in order) -->
-    <script src="db.js?v=14"></script>
-    <script src="prompts.js?v=14"></script>
-    <script src="demo_data.js?v=14"></script>
-    <script src="ai.js?v=14"></script>
-    <script src="import.js?v=14"></script>
-    <script src="app.js?v=14"></script>
+    <script src="db.js?v=15"></script>
+    <script src="prompts.js?v=15"></script>
+    <script src="demo_data.js?v=15"></script>
+    <script src="ai.js?v=15"></script>
+    <script src="auth.js?v=15"></script>
+    <script src="import.js?v=15"></script>
+    <script src="app.js?v=15"></script>
 </body>
 </html>
