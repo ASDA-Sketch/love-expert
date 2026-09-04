@@ -13,7 +13,7 @@
  * 读取配置（从 localStorage）
  * @returns {{api_key:string, base_url:string, model:string}}
  */
-function getConfig() {
+function getAIConfig() {
   try {
     var cfg = JSON.parse(localStorage.getItem('aiConfig') || '{}');
     return {
@@ -31,7 +31,7 @@ function getConfig() {
  * @returns {boolean}
  */
 function isDemoMode() {
-  var cfg = getConfig();
+  var cfg = getAIConfig();
   var key = (cfg.api_key || '').trim();
   if (!key) {
     console.log('[AI] Demo mode: no API key found in config');
@@ -113,7 +113,7 @@ function extractJSON(text) {
  * @returns {Promise<string>} AI 返回的文本内容
  */
 async function callAI(systemPrompt, userPrompt) {
-  var cfg = getConfig();
+  var cfg = getAIConfig();
   var url = cfg.base_url.replace(/\/+$/, '') + '/chat/completions';
   var response = await fetch(url, {
     method: 'POST',
@@ -326,7 +326,7 @@ async function getProgressReminder(contactId) {
  * @returns {Promise<string>} 成功信息
  */
 async function testConnection(config) {
-  var cfg = config || getConfig();
+  var cfg = config || getAIConfig();
   if (!cfg || !cfg.api_key || !cfg.api_key.trim()) {
     throw new Error('请先填写 API Key');
   }
@@ -398,7 +398,7 @@ function wrapError(e) {
 
   // 模型不存在
   if (errStr.indexOf('model') !== -1 && (errStr.indexOf('not found') !== -1 || errStr.indexOf('does not exist') !== -1)) {
-    var cfg = getConfig();
+    var cfg = getAIConfig();
     return new Error('模型名称可能有误，请检查设置中的模型名。当前模型：' + cfg.model);
   }
 
@@ -413,7 +413,7 @@ function wrapError(e) {
 
 // 导出到 window 全局
 window.ai = {
-  getConfig: getConfig,
+  getConfig: getAIConfig,
   isDemoMode: isDemoMode,
   saveConfig: saveConfig,
   extractJSON: extractJSON,
