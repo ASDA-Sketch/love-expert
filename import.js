@@ -72,8 +72,8 @@ function parseChatHistory(text, contactName) {
       }
     }
 
-    // 检测名字独占行（格式B）：短文本，不是时间，下一行有内容且不是时间
-    if (line.length <= 10 && !NAME_TIME_RE.test(line) && !TIME_LINE_RE.test(line) && !line.match(/^\d/)) {
+    // 检测名字独占行（格式B）：短文本，不是时间，不含冒号，下一行有内容且不是时间
+    if (line.length <= 10 && !NAME_TIME_RE.test(line) && !TIME_LINE_RE.test(line) && !line.match(/^\d/) && !/[：:]/.test(line)) {
       var nextForName = (i + 1 < lines.length) ? lines[i + 1].trim() : '';
       if (nextForName && !TIME_LINE_RE.test(nextForName) && !NAME_TIME_RE.test(nextForName)) {
         if (isPossibleName(line, contactName)) {
