@@ -33,9 +33,16 @@ function getConfig() {
 function isDemoMode() {
   var cfg = getConfig();
   var key = (cfg.api_key || '').trim();
-  if (!key) return true;
+  if (!key) {
+    console.log('[AI] Demo mode: no API key found in config');
+    return true;
+  }
   var placeholders = ['sk-your-api-key-here', 'sk-xxx', 'your-api-key', 'placeholder'];
-  if (placeholders.indexOf(key) !== -1) return true;
+  if (placeholders.indexOf(key) !== -1) {
+    console.log('[AI] Demo mode: placeholder key detected');
+    return true;
+  }
+  console.log('[AI] Live mode: API key found (' + key.substring(0, 6) + '...' + key.substring(key.length - 4) + ')');
   return false;
 }
 
@@ -228,8 +235,11 @@ async function analyzeConversation(message, isConversation, contactId) {
 async function generateReplies(quotedMessage, style, customIntent, contactId) {
   // 演示模式：返回预设样例
   if (isDemoMode()) {
+    console.warn('[AI] generateReplies: returning DEMO replies (not real AI)');
     return window.DEMO_REPLIES[style] || window.DEMO_REPLIES['humor'];
   }
+
+  console.log('[AI] generateReplies: calling real AI with style=' + style + ' message="' + (quotedMessage||'').substring(0,30) + '"');
 
   // 如果有 contactId，从数据库获取上下文
   var context = '';
@@ -242,12 +252,15 @@ async function generateReplies(quotedMessage, style, customIntent, contactId) {
       window.REPLY_SYSTEM_PROMPT,
       window.buildReplyUserPrompt(quotedMessage, style, customIntent, context)
     );
+    console.log('[AI] generateReplies: AI returned ' + content.length + ' chars');
     var result = extractJSON(content);
     if (Array.isArray(result)) {
+      console.log('[AI] generateReplies: parsed ' + result.length + ' replies');
       return result;
     }
     throw new Error('AI 返回格式不正确，请重试。');
   } catch (e) {
+    console.error('[AI] generateReplies error:', e.message);
     var msg = e.message || String(e);
     if (msg.indexOf('AI 返回') !== -1 || msg.indexOf('JSON') !== -1) {
       throw e;
