@@ -1,6 +1,6 @@
-// Service Worker - 离线缓存 v10
+// Service Worker - 离线缓存 v11
 // 策略：network-first（JS/CSS/HTML），cache-first（图片/字体）
-const CACHE_NAME = 'love-expert-v10';
+const CACHE_NAME = 'love-expert-v11';
 const ASSETS = [
   './',
   './index.html',
