@@ -201,10 +201,14 @@ function getMessages(contactId) {
 
 /**
  * 添加一条消息（role='them' 或 'me'），同时更新联系人 updated_at
+ * @param {number} contactId
+ * @param {string} role - 'them' 或 'me'
+ * @param {string} content
+ * @param {string} [customTimestamp] - 可选自定义时间戳（ISO 格式），用于批量导入
  */
-function addMessage(contactId, role, content) {
+function addMessage(contactId, role, content, customTimestamp) {
   return getDB().then(db => {
-    const ts = nowStr();
+    const ts = customTimestamp || nowStr();
     let messageId = null;
     return new Promise((resolve, reject) => {
       const tx = db.transaction(['messages', 'contacts'], 'readwrite');
