@@ -1,16 +1,30 @@
 /**
- * 批量导入聊天记录解析模块
- * 支持三种微信复制格式：
- *   格式1：名字 + 时间标记行，内容在下一行
- *   格式2：名字: 内容（冒号分隔）
- *   格式3：纯对话无名字（交替分配）
- * 使用 window 全局导出。
+ * 批量导入聊天记录解析模块 v3
+ * 支持微信真实复制格式 + 多种常见格式
+ *
+ * 支持格式（按优先级）：
+ *   0. 微信真实格式：名字行 + 时间行 + 内容行（3行一组）
+ *   A. 名字+日期时间 同一行，内容在下一行
+ *   B. 名字单独一行，内容在下一行（无时间行）
+ *   C. 名字: 内容（冒号分隔）
+ *   D. 纯对话无名字（交替分配）
  */
+
+// 时间正则：支持 11:30 / 11:30:25 / 11:30 AM / 2:51 PM
+var TIME_RE = '\\d{1,2}:\\d{2}(?::\\d{2})?\\s*(?:AM|PM|上午|下午)?';
+// 日期正则：支持 2024-09-04 / 2024/9/4 / 2024年9月4日 / 2026年09月04日
+var DATE_RE = '\\d{4}[-/\\u5e74]\\d{1,2}[-/\\u6708]\\d{1,2}\\u65e5?';
+// 日期+时间组合
+var DATETIME_RE = DATE_RE + '\\s+' + TIME_RE;
+// 单独的时间行正则（用于格式0：名字行 + 时间行）
+var TIME_LINE_RE = new RegExp('^(' + DATETIME_RE + '|' + TIME_RE + '|' + DATE_RE + ')\\s*$', 'i');
+// 名字+时间同一行（格式A）
+var NAME_TIME_RE = new RegExp('^(.+?)\\s+(' + DATETIME_RE + '|' + TIME_RE + ')\\s*$', 'i');
 
 /**
  * 主解析函数
  * @param {string} text - 用户粘贴的原始文本
- * @param {string} contactName - 当前联系人名字（用于识别"对方说的"）
+ * @param {string} contactName - 当前联系人名字
  * @returns {{role:'them'|'me', content:string, timestamp?:string}[]}
  */
 function parseChatHistory(text, contactName) {
@@ -21,90 +35,190 @@ function parseChatHistory(text, contactName) {
   var lines = text.split('\n');
   var messages = [];
 
-  // 格式1正则：名字 + 日期时间
-  // 匹配：张三  2024-09-04 11:30  或  张三  2024/9/4 11:30  或  张三  11:30
-  var format1Pattern = /^(.+?)\s+(\d{4}[-\/]\d{1,2}[-\/]\d{1,2}[\s]+\d{1,2}:\d{2}(:\d{2})?|\d{1,2}:\d{2})\s*$/;
+  // ===== 格式检测 =====
 
-  // 格式2正则：名字: 内容 或 名字：内容
-  var format2Pattern = /^(.+?)[：:]\s*(.+)$/;
+  // 格式C: 名字: 内容（冒号分隔），排除时间被误判
+  var fmtC_RE = /^([^\d:：]{1,10}?)[：:]\s*(.+)$/;
 
-  // 检测使用哪种格式
-  var hasFormat1 = false;
-  var hasFormat2 = false;
+  // 检测各格式
+  var hasFmt0 = false; // 微信真实格式：名字行+时间行+内容行
+  var hasFmtA = false; // 名字+时间同一行
+  var hasFmtC = false;
+  var nameOnlyLines = []; // 名字独占行（格式B）
 
   for (var i = 0; i < lines.length; i++) {
     var line = lines[i].trim();
     if (!line) continue;
 
-    if (format1Pattern.test(line)) {
-      hasFormat1 = true;
-      break;
+    // 检测格式0：名字行 + 下一行是时间行
+    if (!hasFmt0 && i + 1 < lines.length) {
+      var nextLine = lines[i + 1].trim();
+      if (isPossibleName(line, contactName) && TIME_LINE_RE.test(nextLine)) {
+        hasFmt0 = true;
+      }
     }
 
-    // 检查格式2：冒号/冒号前部分较短（可能是名字）
-    var m2 = line.match(format2Pattern);
-    if (m2 && m2[1].trim().length <= 10 && m2[2].trim().length > 0) {
-      // 排除是格式1的内容行被误判
-      if (!format1Pattern.test(line)) {
-        hasFormat2 = true;
-        break;
+    // 检测格式A：名字+时间同一行
+    if (NAME_TIME_RE.test(line)) {
+      hasFmtA = true;
+    }
+
+    // 检测格式C（冒号分隔）
+    var colonMatch = line.match(fmtC_RE);
+    if (colonMatch) {
+      var beforeColon = colonMatch[1].trim();
+      if (!/^\d{1,2}$/.test(beforeColon)) {
+        hasFmtC = true;
+      }
+    }
+
+    // 检测名字独占行（格式B）：短文本，不是时间，下一行有内容且不是时间
+    if (line.length <= 10 && !NAME_TIME_RE.test(line) && !TIME_LINE_RE.test(line) && !line.match(/^\d/)) {
+      var nextForName = (i + 1 < lines.length) ? lines[i + 1].trim() : '';
+      if (nextForName && !TIME_LINE_RE.test(nextForName) && !NAME_TIME_RE.test(nextForName)) {
+        if (isPossibleName(line, contactName)) {
+          nameOnlyLines.push({ lineIdx: i, name: line });
+        }
       }
     }
   }
 
-  if (hasFormat1) {
-    messages = parseFormat1(lines, format1Pattern, contactName);
-  } else if (hasFormat2) {
-    messages = parseFormat2(lines, format2Pattern, contactName);
+  // ===== 解析（按优先级）=====
+
+  if (hasFmt0) {
+    // 格式0优先：微信真实格式（名字行+时间行+内容行）
+    messages = parseWeChatFormat(lines, contactName);
+  } else if (hasFmtA) {
+    // 格式A：名字+时间同一行
+    messages = parseNameTimeFormat(lines, NAME_TIME_RE, contactName);
+  } else if (nameOnlyLines.length >= 2) {
+    // 格式B：名字独占行
+    messages = parseNameOnlyFormat(lines, nameOnlyLines, contactName);
+  } else if (hasFmtC) {
+    // 格式C：冒号分隔
+    messages = parseColonFormat(lines, fmtC_RE, contactName);
   } else {
-    messages = parseFormat3(lines);
+    // 格式D：纯对话交替
+    messages = parseAlternatingFormat(lines);
   }
+
+  // 过滤空内容
+  messages = messages.filter(function(m) {
+    return m.content && m.content.trim().length > 0;
+  });
 
   return messages;
 }
 
 /**
- * 识别说话人角色
- * @param {string} name - 说话人名字
- * @param {string} contactName - 联系人名字
- * @returns {'me'|'them'}
+ * 判断是否可能是说话人名字
+ */
+function isPossibleName(text, contactName) {
+  var lower = text.toLowerCase().trim();
+  if (lower === '我' || lower === 'i' || lower === 'me' || lower === '自己' || text === '本人') return true;
+  if (text === '对方' || lower === 'ta' || text === '他' || text === '她' || text === '对方说') return true;
+  if (contactName) {
+    var cn = contactName.trim().toLowerCase();
+    if (lower === cn || cn.indexOf(lower) !== -1 || lower.indexOf(cn) !== -1) return true;
+  }
+  // 1-10个字符的中文名字
+  if (/^[\u4e00-\u9fa5a-zA-Z]{1,10}$/.test(text)) return true;
+  return false;
+}
+
+/**
+ * 识别角色
  */
 function identifyRole(name, contactName) {
   name = name.trim();
   var lower = name.toLowerCase();
-
-  // "我"系列 → me
-  if (lower === '我' || lower === 'i' || lower === 'me' || lower === '自己' || name === '本人') {
-    return 'me';
-  }
-
-  // "对方"系列 → them
-  if (name === '对方' || lower === 'ta' || name === '他' || name === '她' || name === '对方说') {
-    return 'them';
-  }
-
-  // 如果有联系人名字，检查是否匹配
+  if (lower === '我' || lower === 'i' || lower === 'me' || lower === '自己' || name === '本人') return 'me';
+  if (name === '对方' || lower === 'ta' || name === '他' || name === '她' || name === '对方说') return 'them';
   if (contactName) {
     var cn = contactName.trim().toLowerCase();
-    if (lower === cn || cn.indexOf(lower) !== -1 || lower.indexOf(cn) !== -1) {
-      return 'them';
-    }
+    if (lower === cn || cn.indexOf(lower) !== -1 || lower.indexOf(cn) !== -1) return 'them';
   }
-
-  // 默认：不是"我"的都是"对方"
   return 'them';
 }
 
-/**
- * 解析格式1：名字 + 时间在单独行，内容在后续行
- * 示例：
- *   张三  2024-09-04 11:30
- *   你今天干嘛了
- *
- *   我  2024-09-04 11:31
- *   没干嘛
- */
-function parseFormat1(lines, pattern, contactName) {
+// ============================================================
+// 格式0：微信真实格式（名字行 + 时间行 + 内容行）
+// ============================================================
+// 示例：
+// 啼
+// 2026年09月04日 16:17
+// 不喜欢其它男人
+//
+// 我
+// 2026年09月04日 16:18
+// 那挺好的
+function parseWeChatFormat(lines, contactName) {
+  var messages = [];
+  var i = 0;
+
+  while (i < lines.length) {
+    var line = lines[i].trim();
+
+    // 跳过空行
+    if (!line) {
+      i++;
+      continue;
+    }
+
+    // 尝试匹配：名字行 + 时间行 + 内容行
+    if (i + 2 < lines.length && isPossibleName(line, contactName) && TIME_LINE_RE.test(lines[i + 1].trim())) {
+      var name = line;
+      var timestamp = lines[i + 1].trim();
+      var contentLines = [];
+      var j = i + 2;
+
+      // 收集内容行，直到遇到下一个名字+时间对或空行后的名字+时间对
+      while (j < lines.length) {
+        var contentLine = lines[j].trim();
+
+        // 空行：可能是消息结束
+        if (!contentLine) {
+          // 检查空行后是否是新消息（名字+时间）
+          if (j + 2 < lines.length && isPossibleName(lines[j + 1].trim(), contactName) && TIME_LINE_RE.test(lines[j + 2].trim())) {
+            break;
+          }
+          // 否则继续收集（内容中的空行）
+          j++;
+          continue;
+        }
+
+        // 检查是否到了下一个名字+时间对
+        if (isPossibleName(contentLine, contactName) && j + 1 < lines.length && TIME_LINE_RE.test(lines[j + 1].trim())) {
+          break;
+        }
+
+        contentLines.push(contentLine);
+        j++;
+      }
+
+      var content = contentLines.join('\n').trim();
+      if (content) {
+        messages.push({
+          role: identifyRole(name, contactName),
+          content: content,
+          timestamp: timestamp
+        });
+      }
+
+      i = j;
+    } else {
+      // 不是名字+时间格式，跳过
+      i++;
+    }
+  }
+
+  return messages;
+}
+
+// ============================================================
+// 格式A：名字+时间同一行，内容在下一行
+// ============================================================
+function parseNameTimeFormat(lines, pattern, contactName) {
   var messages = [];
   var currentRole = null;
   var currentContent = [];
@@ -117,7 +231,6 @@ function parseFormat1(lines, pattern, contactName) {
     var match = line.match(pattern);
 
     if (match) {
-      // 保存上一条消息
       if (currentRole && currentContent.length > 0) {
         messages.push({
           role: currentRole,
@@ -125,18 +238,14 @@ function parseFormat1(lines, pattern, contactName) {
           timestamp: currentTimestamp
         });
       }
-
-      var name = match[1].trim();
+      currentRole = identifyRole(match[1].trim(), contactName);
       currentTimestamp = match[2].trim();
-      currentRole = identifyRole(name, contactName);
       currentContent = [];
     } else {
-      // 内容行
       currentContent.push(line);
     }
   }
 
-  // 保存最后一条
   if (currentRole && currentContent.length > 0) {
     messages.push({
       role: currentRole,
@@ -148,21 +257,76 @@ function parseFormat1(lines, pattern, contactName) {
   return messages;
 }
 
-/**
- * 解析格式2：名字: 内容
- * 示例：张三: 你今天干嘛了
- */
-function parseFormat2(lines, pattern, contactName) {
+// ============================================================
+// 格式B：名字独占一行，内容在下一行（无时间行）
+// ============================================================
+function parseNameOnlyFormat(lines, nameLines, contactName) {
   var messages = [];
+  var nameLineIdxSet = {};
+  for (var n = 0; n < nameLines.length; n++) {
+    nameLineIdxSet[nameLines[n].lineIdx] = nameLines[n].name;
+  }
+
+  var currentRole = null;
+  var currentContent = [];
 
   for (var i = 0; i < lines.length; i++) {
     var line = lines[i].trim();
-    if (!line) continue;
 
+    if (!line) {
+      if (currentRole && currentContent.length > 0) {
+        messages.push({
+          role: currentRole,
+          content: currentContent.join('\n').trim()
+        });
+        currentRole = null;
+        currentContent = [];
+      }
+      continue;
+    }
+
+    if (nameLineIdxSet[i]) {
+      if (currentRole && currentContent.length > 0) {
+        messages.push({
+          role: currentRole,
+          content: currentContent.join('\n').trim()
+        });
+      }
+      currentRole = identifyRole(nameLineIdxSet[i], contactName);
+      currentContent = [];
+    } else {
+      if (currentRole) {
+        currentContent.push(line);
+      } else {
+        currentRole = 'them';
+        currentContent.push(line);
+      }
+    }
+  }
+
+  if (currentRole && currentContent.length > 0) {
+    messages.push({
+      role: currentRole,
+      content: currentContent.join('\n').trim()
+    });
+  }
+
+  return messages;
+}
+
+// ============================================================
+// 格式C：名字: 内容（冒号分隔）
+// ============================================================
+function parseColonFormat(lines, pattern, contactName) {
+  var messages = [];
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].trim();
+    if (!line) continue;
     var match = line.match(pattern);
     if (match) {
       var name = match[1].trim();
       var content = match[2].trim();
+      if (/^\d{1,2}$/.test(name)) continue;
       if (content) {
         messages.push({
           role: identifyRole(name, contactName),
@@ -171,28 +335,21 @@ function parseFormat2(lines, pattern, contactName) {
       }
     }
   }
-
   return messages;
 }
 
-/**
- * 解析格式3：纯对话无名字，交替分配
- * 第1句对方，第2句我，第3句对方...
- */
-function parseFormat3(lines) {
+// ============================================================
+// 格式D：纯对话交替
+// ============================================================
+function parseAlternatingFormat(lines) {
   var messages = [];
-  var role = 'them'; // 从对方开始
-
+  var role = 'them';
   for (var i = 0; i < lines.length; i++) {
     var line = lines[i].trim();
     if (!line) continue;
-    messages.push({
-      role: role,
-      content: line
-    });
+    messages.push({ role: role, content: line });
     role = role === 'them' ? 'me' : 'them';
   }
-
   return messages;
 }
 
