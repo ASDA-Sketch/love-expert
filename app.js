@@ -128,8 +128,27 @@ function init() {
     });
 
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js').catch(function(err) {
+        navigator.serviceWorker.register('sw.js').then(function(reg) {
+            // 强制更新：如果有等待中的 SW，立即激活
+            if (reg.waiting) {
+                reg.waiting.postMessage('skipWaiting');
+            }
+            reg.addEventListener('updatefound', function() {
+                var newSW = reg.installing;
+                if (newSW) {
+                    newSW.addEventListener('statechange', function() {
+                        if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+                            newSW.postMessage('skipWaiting');
+                        }
+                    });
+                }
+            });
+        }).catch(function(err) {
             console.log('Service Worker registration failed:', err);
+        });
+        // SW 控制权变化时刷新页面
+        navigator.serviceWorker.addEventListener('controllerchange', function() {
+            window.location.reload();
         });
     }
 }
