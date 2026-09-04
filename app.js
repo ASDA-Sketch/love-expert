@@ -537,9 +537,14 @@ function renderMessage(msg) {
 
     if (msg.role === 'them') {
         html += '<div class="message-actions">';
-        html += '<button class="msg-action reply-action" title="智能回复">💬</button>';
-        html += '<button class="msg-action edit-action" title="编辑">✏️</button>';
-        html += '<button class="msg-action delete-action" title="删除">🗑️</button>';
+        html += '<button class="msg-action reply-action" title="智能回复">💬 回复</button>';
+        html += '<button class="msg-action edit-action" title="编辑">✏️ 编辑</button>';
+        html += '<button class="msg-action delete-action" title="删除">🗑️ 删除</button>';
+        html += '</div>';
+    } else {
+        html += '<div class="message-actions">';
+        html += '<button class="msg-action edit-action" title="编辑">✏️ 编辑</button>';
+        html += '<button class="msg-action delete-action" title="删除">🗑️ 删除</button>';
         html += '</div>';
     }
 
@@ -552,18 +557,18 @@ function renderMessage(msg) {
                 openReplyPanel(msg.content);
             });
         }
-        var editBtn = bubble.querySelector('.edit-action');
-        if (editBtn) {
-            editBtn.addEventListener('click', function() {
-                editMessage(msg.id);
-            });
-        }
-        var deleteBtn = bubble.querySelector('.delete-action');
-        if (deleteBtn) {
-            deleteBtn.addEventListener('click', function() {
-                deleteMessage(msg.id);
-            });
-        }
+    }
+    var editBtn = bubble.querySelector('.edit-action');
+    if (editBtn) {
+        editBtn.addEventListener('click', function() {
+            editMessage(msg.id);
+        });
+    }
+    var deleteBtn = bubble.querySelector('.delete-action');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', function() {
+            deleteMessage(msg.id);
+        });
     }
 
     area.appendChild(bubble);
