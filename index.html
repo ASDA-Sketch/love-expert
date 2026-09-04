@@ -8,10 +8,10 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="恋爱聊天助手">
     <meta name="description" content="AI驱动的恋爱聊天助手，帮你分析对话、推荐话题、生成高情商回复">
-    <link rel="manifest" href="manifest.json?v=12">
+    <link rel="manifest" href="manifest.json?v=13">
     <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="icon" href="icon-192.png">
-    <link rel="stylesheet" href="style.css?v=12">
+    <link rel="stylesheet" href="style.css?v=13">
     <title>恋爱聊天助手</title>
     <script>
     // 强制清理旧 Service Worker + 缓存，确保加载最新代码
@@ -19,7 +19,7 @@
         if ('serviceWorker' in navigator) {
             // 检查是否需要强制更新
             var FORCE_UPDATE_KEY = 'love_expert_sw_version';
-            var NEW_VERSION = 'v12';
+            var NEW_VERSION = 'v13';
             var currentVersion = localStorage.getItem(FORCE_UPDATE_KEY);
             if (currentVersion !== NEW_VERSION) {
                 // 版本不匹配：注销所有 SW + 清空所有缓存
@@ -172,18 +172,18 @@
     <div id="batchModal" class="modal-overlay hidden">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>批量粘贴对话</h3>
+                <h3>批量导入对话</h3>
                 <button class="modal-close" data-close="batchModal">✕</button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label>对话内容</label>
-                    <textarea id="batchText" rows="10" placeholder="格式示例：&#10;对方：你好呀&#10;我：嗨，最近怎么样&#10;对方：还行，你呢"></textarea>
-                    <p class="format-hint">每行一条消息，以"对方："或"我："开头</p>
+                    <label>粘贴微信聊天记录</label>
+                    <textarea id="batchText" rows="12" placeholder="支持以下格式，直接从微信复制粘贴：&#10;&#10;格式1（名字+时间）：&#10;小美  2024-09-04 11:30&#10;你今天干嘛了&#10;我  2024-09-04 11:31&#10;没干嘛，在家躺着&#10;&#10;格式2（名字: 内容）：&#10;小美: 你今天干嘛了&#10;我: 没干嘛&#10;&#10;格式3（纯对话，交替分配）：&#10;你今天干嘛了&#10;没干嘛，在家躺着"></textarea>
+                    <p class="format-hint">自动识别"我"为我说的，联系人名字为对方说的。无名字时交替分配。</p>
                 </div>
             </div>
             <div class="modal-footer">
-                <button id="importBatchBtn" class="btn-primary">导入对话</button>
+                <button id="importBatchBtn" class="btn-primary">解析并导入</button>
             </div>
         </div>
     </div>
@@ -270,10 +270,11 @@
     </div>
 
     <!-- Scripts (loaded in order) -->
-    <script src="db.js?v=12"></script>
-    <script src="prompts.js?v=12"></script>
-    <script src="demo_data.js?v=12"></script>
-    <script src="ai.js?v=12"></script>
-    <script src="app.js?v=12"></script>
+    <script src="db.js?v=13"></script>
+    <script src="prompts.js?v=13"></script>
+    <script src="demo_data.js?v=13"></script>
+    <script src="ai.js?v=13"></script>
+    <script src="import.js?v=13"></script>
+    <script src="app.js?v=13"></script>
 </body>
 </html>
