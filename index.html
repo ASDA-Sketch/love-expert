@@ -19,7 +19,7 @@
         if ('serviceWorker' in navigator) {
             // 检查是否需要强制更新
             var FORCE_UPDATE_KEY = 'love_expert_sw_version';
-            var NEW_VERSION = 'v13';
+            var NEW_VERSION = 'v14';
             var currentVersion = localStorage.getItem(FORCE_UPDATE_KEY);
             if (currentVersion !== NEW_VERSION) {
                 // 版本不匹配：注销所有 SW + 清空所有缓存
