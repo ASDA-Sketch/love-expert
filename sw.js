@@ -1,5 +1,6 @@
-// Service Worker - 离线缓存
-const CACHE_NAME = 'love-expert-v7';
+// Service Worker - 离线缓存 v8
+// 策略：network-first（JS/CSS/HTML），cache-first（图片/字体）
+const CACHE_NAME = 'love-expert-v8';
 const ASSETS = [
   './',
   './index.html',
@@ -26,7 +27,7 @@ self.addEventListener('install', (e) => {
   self.skipWaiting();
 });
 
-// 激活：清理旧缓存
+// 激活：清理旧缓存 + 立即接管
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) => {
@@ -38,38 +39,64 @@ self.addEventListener('activate', (e) => {
   self.clients.claim();
 });
 
-// fetch：缓存优先，网络回退（离线时用缓存）
+// 监听 skipWaiting 消息
+self.addEventListener('message', (e) => {
+  if (e.data === 'skipWaiting') {
+    self.skipWaiting();
+  }
+});
+
+// fetch：network-first for JS/CSS/HTML, cache-first for others
 self.addEventListener('fetch', (e) => {
-  // 只处理 GET 请求
   if (e.request.method !== 'GET') return;
 
-  // API 请求不缓存（DeepSeek API）
+  // API 请求不缓存
   if (e.request.url.includes('api.deepseek.com') || e.request.url.includes('/chat/completions')) {
     return;
   }
 
-  e.respondWith(
-    caches.match(e.request).then((cached) => {
-      if (cached) {
-        // 有缓存就用缓存，同时后台更新
-        fetch(e.request).then((resp) => {
-          if (resp && resp.status === 200) {
-            caches.open(CACHE_NAME).then((cache) => cache.put(e.request, resp.clone()));
-          }
-        }).catch(() => {});
-        return cached;
-      }
-      // 没缓存就请求
-      return fetch(e.request).then((resp) => {
-        if (resp && resp.status === 200 && resp.type === 'basic') {
-          const respClone = resp.clone();
+  var url = new URL(e.request.url);
+  var isCodeFile = url.pathname.endsWith('.js') || url.pathname.endsWith('.css') || url.pathname.endsWith('.html') || url.pathname === '/' || url.pathname === '';
+
+  if (isCodeFile) {
+    // Network-first for code files: always get latest from network
+    e.respondWith(
+      fetch(e.request).then((resp) => {
+        if (resp && resp.status === 200) {
+          var respClone = resp.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(e.request, respClone));
         }
         return resp;
       }).catch(() => {
-        // 离线且无缓存
-        return new Response('离线模式，此资源不可用', { status: 503 });
-      });
-    })
-  );
+        // Network failed: fall back to cache
+        return caches.match(e.request).then((cached) => {
+          return cached || new Response('离线模式，此资源不可用', { status: 503 });
+        });
+      })
+    );
+  } else {
+    // Cache-first for images and other assets
+    e.respondWith(
+      caches.match(e.request).then((cached) => {
+        if (cached) {
+          // Background update
+          fetch(e.request).then((resp) => {
+            if (resp && resp.status === 200) {
+              caches.open(CACHE_NAME).then((cache) => cache.put(e.request, resp.clone()));
+            }
+          }).catch(() => {});
+          return cached;
+        }
+        return fetch(e.request).then((resp) => {
+          if (resp && resp.status === 200 && resp.type === 'basic') {
+            var respClone = resp.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(e.request, respClone));
+          }
+          return resp;
+        }).catch(() => {
+          return new Response('离线模式，此资源不可用', { status: 503 });
+        });
+      })
+    );
+  }
 });
