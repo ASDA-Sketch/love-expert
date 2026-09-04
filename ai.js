@@ -107,7 +107,8 @@ function extractJSON(text) {
  */
 async function callAI(systemPrompt, userPrompt) {
   var cfg = getConfig();
-  var response = await fetch(cfg.base_url + '/chat/completions', {
+  var url = cfg.base_url.replace(/\/+$/, '') + '/chat/completions';
+  var response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
