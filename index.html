@@ -12,23 +12,20 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <link rel="manifest" href="manifest.json?v=18">
+    <link rel="manifest" href="manifest.json?v=19">
     <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="icon" href="icon-192.png">
-    <link rel="stylesheet" href="style.css?v=18">
+    <link rel="stylesheet" href="style.css?v=19">
     <title>恋爱聊天助手</title>
     <script>
-    // v18: 一次性清理旧 SW + 缓存，不自动 reload（防止无限刷新循环）
+    // v19: 彻底清除旧 SW + 缓存，注册 no-op SW，不监听 controllerchange，不自动 reload
     (function() {
         var VERSION_KEY = 'love_expert_sw_version';
-        var CLEANUP_KEY = 'love_expert_sw_cleanup_done';
-        var NEW_VERSION = 'v18';
+        var NEW_VERSION = 'v19';
         var currentVersion = localStorage.getItem(VERSION_KEY);
-        var alreadyCleaned = sessionStorage.getItem(CLEANUP_KEY) === 'yes';
 
-        // 只在版本不匹配 且 本 session 还没清理过 时执行一次
-        if (currentVersion !== NEW_VERSION && !alreadyCleaned && 'serviceWorker' in navigator) {
-            sessionStorage.setItem(CLEANUP_KEY, 'yes'); // 标记已清理，防止重复
+        // 每次版本升级时清理旧 SW 和缓存
+        if (currentVersion !== NEW_VERSION && 'serviceWorker' in navigator) {
             localStorage.setItem(VERSION_KEY, NEW_VERSION);
 
             navigator.serviceWorker.getRegistrations().then(function(regs) {
@@ -41,13 +38,12 @@
             }).catch(function(e) {
                 console.warn('SW cleanup error:', e);
             });
-            // 不 reload，让页面正常加载
         }
 
-        // 注册新 SW (v18) - 不监听 controllerchange，不自动 reload
+        // 注册 no-op SW (v19) - 不监听 controllerchange，不自动 reload
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
-                navigator.serviceWorker.register('sw.js?v=18').catch(function(e) {
+                navigator.serviceWorker.register('sw.js?v=19').catch(function(e) {
                     console.warn('SW registration failed:', e);
                 });
             });
@@ -294,12 +290,12 @@
     </div>
 
     <!-- Scripts (loaded in order) -->
-    <script src="db.js?v=17"></script>
-    <script src="prompts.js?v=17"></script>
-    <script src="demo_data.js?v=17"></script>
-    <script src="ai.js?v=17"></script>
-    <script src="auth.js?v=17"></script>
-    <script src="import.js?v=17"></script>
-    <script src="app.js?v=17"></script>
+    <script src="db.js?v=19"></script>
+    <script src="prompts.js?v=19"></script>
+    <script src="demo_data.js?v=19"></script>
+    <script src="ai.js?v=19"></script>
+    <script src="auth.js?v=19"></script>
+    <script src="import.js?v=19"></script>
+    <script src="app.js?v=19"></script>
 </body>
 </html>
