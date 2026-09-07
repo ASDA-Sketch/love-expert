@@ -300,6 +300,55 @@ function setupEventListeners() {
     // Batch paste
     $('importBatchBtn').addEventListener('click', importBatch);
 
+    // v20: 从剪贴板粘贴按钮（手机端推荐）
+    var clipBtn = $('clipboardPasteBtn');
+    if (clipBtn) {
+        clipBtn.addEventListener('click', function() {
+            var ta = $('batchText');
+            if (navigator.clipboard && navigator.clipboard.readText) {
+                navigator.clipboard.readText().then(function(text) {
+                    if (text) {
+                        ta.value = text;
+                        ta.focus();
+                        // 移动光标到末尾
+                        var len = ta.value.length;
+                        ta.setSelectionRange(len, len);
+                    } else {
+                        alert('剪贴板为空，请先在微信中复制聊天记录');
+                    }
+                }).catch(function(err) {
+                    alert('无法读取剪贴板，请手动长按文本框选择"粘贴"');
+                });
+            } else {
+                ta.focus();
+                alert('当前浏览器不支持剪贴板读取，请手动长按文本框选择"粘贴"');
+            }
+        });
+    }
+
+    // v20: paste 事件处理 - 确保完整多行内容被插入（修复手机端只粘贴一条）
+    var batchTa = $('batchText');
+    if (batchTa) {
+        batchTa.addEventListener('paste', function(e) {
+            var clipboardData = e.clipboardData || window.clipboardData;
+            if (clipboardData) {
+                var pastedText = clipboardData.getData('text/plain');
+                if (pastedText && pastedText.indexOf('\n') !== -1) {
+                    e.preventDefault();
+                    // 手动插入完整多行文本
+                    var start = batchTa.selectionStart;
+                    var end = batchTa.selectionEnd;
+                    var before = batchTa.value.substring(0, start);
+                    var after = batchTa.value.substring(end);
+                    batchTa.value = before + pastedText + after;
+                    // 移动光标到插入内容末尾
+                    var cursorPos = start + pastedText.length;
+                    batchTa.setSelectionRange(cursorPos, cursorPos);
+                }
+            }
+        });
+    }
+
     // Settings
     $('settingsBtn').addEventListener('click', openSettings);
     $('saveConfigBtn').addEventListener('click', saveConfig);
