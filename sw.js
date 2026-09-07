@@ -1,18 +1,18 @@
-// Service Worker - 离线缓存 v16
+// Service Worker - 离线缓存 v17
 // 策略：network-first（JS/CSS/HTML），cache-first（图片/字体）
-const CACHE_NAME = 'love-expert-v16';
+const CACHE_NAME = 'love-expert-v17';
 const ASSETS = [
   './',
   './index.html',
-  './style.css',
-  './app.js',
-  './db.js',
-  './prompts.js',
-  './demo_data.js',
-  './ai.js',
-  './auth.js',
-  './import.js',
-  './manifest.json',
+  './style.css?v=17',
+  './app.js?v=17',
+  './db.js?v=17',
+  './prompts.js?v=17',
+  './demo_data.js?v=17',
+  './ai.js?v=17',
+  './auth.js?v=17',
+  './import.js?v=17',
+  './manifest.json?v=17',
   './icon-192.png',
   './icon-512.png',
 ];
