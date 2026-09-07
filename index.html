@@ -12,74 +12,46 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <link rel="manifest" href="manifest.json?v=17">
+    <link rel="manifest" href="manifest.json?v=18">
     <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="icon" href="icon-192.png">
-    <link rel="stylesheet" href="style.css?v=17">
+    <link rel="stylesheet" href="style.css?v=18">
     <title>恋爱聊天助手</title>
     <script>
-    // 强制清理旧 Service Worker + 缓存，确保加载最新代码 v17
+    // v18: 一次性清理旧 SW + 缓存，不自动 reload（防止无限刷新循环）
     (function() {
-        var FORCE_UPDATE_KEY = 'love_expert_sw_version';
-        var NEW_VERSION = 'v17';
-        var currentVersion = localStorage.getItem(FORCE_UPDATE_KEY);
+        var VERSION_KEY = 'love_expert_sw_version';
+        var CLEANUP_KEY = 'love_expert_sw_cleanup_done';
+        var NEW_VERSION = 'v18';
+        var currentVersion = localStorage.getItem(VERSION_KEY);
+        var alreadyCleaned = sessionStorage.getItem(CLEANUP_KEY) === 'yes';
 
-        // 版本不匹配 或 检测到可能是旧版 → 强制清理
-        var needsCleanup = currentVersion !== NEW_VERSION;
+        // 只在版本不匹配 且 本 session 还没清理过 时执行一次
+        if (currentVersion !== NEW_VERSION && !alreadyCleaned && 'serviceWorker' in navigator) {
+            sessionStorage.setItem(CLEANUP_KEY, 'yes'); // 标记已清理，防止重复
+            localStorage.setItem(VERSION_KEY, NEW_VERSION);
 
-        if (needsCleanup && 'serviceWorker' in navigator) {
-            // 注销所有旧 SW + 清空所有缓存
             navigator.serviceWorker.getRegistrations().then(function(regs) {
-                var unregPromises = [];
-                regs.forEach(function(reg) { unregPromises.push(reg.unregister()); });
+                regs.forEach(function(reg) { reg.unregister(); });
                 if ('caches' in window) {
                     caches.keys().then(function(keys) {
                         keys.forEach(function(k) { caches.delete(k); });
                     });
                 }
-                Promise.all(unregPromises).then(function() {
-                    localStorage.setItem(FORCE_UPDATE_KEY, NEW_VERSION);
-                    if (regs.length > 0) {
-                        // 有旧 SW 被注销，刷新页面加载新资源
-                        window.location.reload();
-                    }
-                });
+            }).catch(function(e) {
+                console.warn('SW cleanup error:', e);
             });
+            // 不 reload，让页面正常加载
         }
 
-        // 注册新 SW (v17)
+        // 注册新 SW (v18) - 不监听 controllerchange，不自动 reload
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
-                navigator.serviceWorker.register('sw.js?v=17').catch(function(e) {
+                navigator.serviceWorker.register('sw.js?v=18').catch(function(e) {
                     console.warn('SW registration failed:', e);
                 });
             });
         }
-    })();
-
-    // 运行时检测：如果 import.js 是旧版（缺少 stripInvisible），强制清缓存刷新
-    (function() {
-        window.addEventListener('load', function() {
-            // 延迟检查，等所有 script 加载完
-            setTimeout(function() {
-                if (typeof window.parseChatHistory === 'function' && typeof window.stripInvisible !== 'function') {
-                    console.error('[FATAL] Old import.js loaded! stripInvisible missing. Forcing cache bust reload.');
-                    // 清所有缓存
-                    if ('caches' in window) {
-                        caches.keys().then(function(keys) { keys.forEach(function(k) { caches.delete(k); }); });
-                    }
-                    // 注销所有 SW
-                    if ('serviceWorker' in navigator) {
-                        navigator.serviceWorker.getRegistrations().then(function(regs) {
-                            regs.forEach(function(reg) { reg.unregister(); });
-                        });
-                    }
-                    // 带 timestamp 刷新，绕过所有缓存
-                    var sep = window.location.href.indexOf('?') !== -1 ? '&' : '?';
-                    window.location.href = window.location.href + sep + 'bust=' + Date.now();
-                }
-            }, 500);
-        });
     })();
     </script>
 </head>
