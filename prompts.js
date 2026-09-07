@@ -127,6 +127,7 @@ function buildAnalysisUserPrompt(message, isConversation, context) {
 const REPLY_SYSTEM_PROMPT = `你是恋爱聊天回复专家。用户会引用对方的一句话，并指定想要的回复风格。请严格按指定风格生成 2-3 条回复，每条要自然、不油腻、符合中文社交语境；附简短"为什么这样说"。
 
 风格说明：
+- auto 智能推荐：根据聊天记录和联系人背景，自动判断最合适的回复风格和内容，不局限于某一种风格
 - humor 幽默调侃：轻松好玩，用梗或抖机灵的方式接话，让对方笑出来
 - sincere 真诚走心：发自内心、有温度，不做作不套路
 - tease 俏皮撩拨：带着一点小坏和挑逗，像在逗猫一样，分寸感要好
@@ -193,6 +194,7 @@ const REPLY_SYSTEM_PROMPT = `你是恋爱聊天回复专家。用户会引用对
  */
 function buildReplyUserPrompt(quotedMessage, style, customIntent, context) {
   var styleLabels = {
+    'auto': '智能推荐',
     'humor': '幽默调侃',
     'sincere': '真诚走心',
     'tease': '俏皮撩拨',
@@ -214,14 +216,20 @@ function buildReplyUserPrompt(quotedMessage, style, customIntent, context) {
 
   // 联系人资料和历史对话放在最前面，让 AI 先看到人物背景
   if (context && context.trim()) {
-    prompt += '以下是该联系人的资料和最近的聊天记录：\n';
+    prompt += '以下是当前联系人的资料和最近的聊天记录（注意：这是当前正在对话的联系人，回复只针对此人）：\n';
     prompt += context;
-    prompt += '\n\n请认真分析以上信息：她的性格标签、关系阶段、背景备注、最近情绪状态（从消息推断）、上次聊到什么话题。你生成的回复必须贴合这些信息，不能千篇一律。\n';
-    prompt += '每条回复的 reason 必须点明你是基于她的哪些背景信息来决定这个语气和内容的。\n\n';
+    prompt += '\n\n请认真分析以上信息：此人的性格标签、关系阶段、背景备注、最近情绪状态（从消息推断）、上次聊到什么话题。你生成的回复必须贴合这些信息，不能千篇一律。\n';
+    prompt += '每条回复的 reason 必须点明你是基于此人的哪些背景信息来决定这个语气和内容的。\n\n';
   }
 
   prompt += '对方说了这句话：\n「' + quotedMessage + '」\n\n';
-  prompt += '请用「' + styleLabel + '」的风格生成回复。\n';
+
+  if (style === 'auto') {
+    prompt += '请用「智能推荐」的方式生成回复：根据以上聊天记录和联系人背景，自动判断最合适的回复风格和内容。你可以混合多种风格（幽默/真诚/关心/俏皮等），选择最适合当前对话语境和对方情绪的那一种，给出最自然、最合适的回复。\n';
+    prompt += '在 reason 中说明你为什么选择这个风格和内容方向。\n';
+  } else {
+    prompt += '请用「' + styleLabel + '」的风格生成回复。\n';
+  }
 
   if (style === 'guide_topic' && customIntent) {
     prompt += '用户想把话题引到：' + customIntent + '\n请生成能自然过渡到这个话题的回复，过渡要顺滑不生硬。\n';
