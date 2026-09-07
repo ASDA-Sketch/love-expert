@@ -1,104 +1,30 @@
-// Service Worker - 离线缓存 v18
-// 策略：network-first（JS/CSS/HTML），cache-first（图片/字体）
-const CACHE_NAME = 'love-expert-v18';
-const ASSETS = [
-  './',
-  './index.html',
-  './style.css?v=18',
-  './app.js?v=18',
-  './db.js?v=18',
-  './prompts.js?v=18',
-  './demo_data.js?v=18',
-  './ai.js?v=18',
-  './auth.js?v=18',
-  './import.js?v=18',
-  './manifest.json?v=18',
-  './icon-192.png',
-  './icon-512.png',
-];
+// Service Worker v19 - No-op (pass-through)
+// 彻底清除所有旧缓存，不拦截任何请求，防止旧缓存导致页面闪烁
+const CACHE_NAME = 'love-expert-v19';
 
-// 安装：预缓存所有静态资源
+// 安装：清除所有缓存 + 立即跳过等待
 self.addEventListener('install', (e) => {
   e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS).catch((err) => {
-        console.warn('SW: 部分资源缓存失败', err);
-      });
+    caches.keys().then(function(keys) {
+      return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+    }).then(function() {
+      console.log('SW v19: All caches cleared on install');
     })
   );
   self.skipWaiting();
 });
 
-// 激活：清理旧缓存 + 立即接管
+// 激活：再次清除所有缓存 + 立即接管所有客户端
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
-      );
+    caches.keys().then(function(keys) {
+      return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+    }).then(function() {
+      console.log('SW v19: All caches cleared on activate');
     })
   );
   self.clients.claim();
 });
 
-// 监听 skipWaiting 消息
-self.addEventListener('message', (e) => {
-  if (e.data === 'skipWaiting') {
-    self.skipWaiting();
-  }
-});
-
-// fetch：network-first for JS/CSS/HTML, cache-first for others
-self.addEventListener('fetch', (e) => {
-  if (e.request.method !== 'GET') return;
-
-  // API 请求不缓存
-  if (e.request.url.includes('api.deepseek.com') || e.request.url.includes('/chat/completions')) {
-    return;
-  }
-
-  var url = new URL(e.request.url);
-  var isCodeFile = url.pathname.endsWith('.js') || url.pathname.endsWith('.css') || url.pathname.endsWith('.html') || url.pathname === '/' || url.pathname === '';
-
-  if (isCodeFile) {
-    // Network-first for code files: always get latest from network
-    e.respondWith(
-      fetch(e.request).then((resp) => {
-        if (resp && resp.status === 200) {
-          var respClone = resp.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, respClone));
-        }
-        return resp;
-      }).catch(() => {
-        // Network failed: fall back to cache
-        return caches.match(e.request).then((cached) => {
-          return cached || new Response('离线模式，此资源不可用', { status: 503 });
-        });
-      })
-    );
-  } else {
-    // Cache-first for images and other assets
-    e.respondWith(
-      caches.match(e.request).then((cached) => {
-        if (cached) {
-          // Background update
-          fetch(e.request).then((resp) => {
-            if (resp && resp.status === 200) {
-              caches.open(CACHE_NAME).then((cache) => cache.put(e.request, resp.clone()));
-            }
-          }).catch(() => {});
-          return cached;
-        }
-        return fetch(e.request).then((resp) => {
-          if (resp && resp.status === 200 && resp.type === 'basic') {
-            var respClone = resp.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(e.request, respClone));
-          }
-          return resp;
-        }).catch(() => {
-          return new Response('离线模式，此资源不可用', { status: 503 });
-        });
-      })
-    );
-  }
-});
+// 不拦截任何 fetch 请求 —— 所有请求直接走网络
+// 这确保浏览器永远从 GitHub Pages 获取最新文件，不会使用旧缓存
