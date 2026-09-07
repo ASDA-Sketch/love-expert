@@ -11,6 +11,9 @@ var replyState = { quotedMessage: '', style: '', customIntent: '', contactId: nu
 var selectedScene = '刚认识';
 var editingContactId = null;
 
+// v24: 批量粘贴模式 - 'textarea'(方案A) 或 'editable'(方案B)
+var batchEditMode = 'textarea';
+
 /* ===== Constants ===== */
 var PRESETS = {
     deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
@@ -300,7 +303,7 @@ function setupEventListeners() {
     // Batch paste
     $('importBatchBtn').addEventListener('click', importBatch);
 
-    // v23: 文件上传 - 首选方案，上传后自动解析并导入
+    // v24: 文件上传 - 首选方案，上传后自动解析并导入
     var fileInput = $('batchFileInput');
     if (fileInput) {
         fileInput.addEventListener('change', function(e) {
@@ -309,7 +312,8 @@ function setupEventListeners() {
             var reader = new FileReader();
             reader.onload = function(ev) {
                 var text = ev.target.result;
-                $('batchText').value = text;
+                setBatchText(text);
+                updateBatchDiag();
                 // 自动触发解析导入
                 if (text && text.trim()) {
                     importBatch();
@@ -323,14 +327,14 @@ function setupEventListeners() {
         });
     }
 
-    // v23: 调试按钮
+    // v24: 调试按钮 - 显示当前模式的内容信息
     var debugBtn = $('debugBatchBtn');
     if (debugBtn) {
         debugBtn.addEventListener('click', function() {
-            var ta = $('batchText');
-            var val = ta.value;
+            var val = getBatchText();
             var nlCount = (val.match(/\n/g) || []).length;
-            var info = '=== 调试信息 ===\n';
+            var info = '=== 调试信息 (v24) ===\n';
+            info += '当前模式: ' + batchEditMode + '\n';
             info += '总字符数: ' + val.length + '\n';
             info += '换行数: ' + nlCount + '\n';
             info += '前200字符:\n' + val.substring(0, 200);
@@ -339,38 +343,54 @@ function setupEventListeners() {
         });
     }
 
-    // v23: paste 事件处理 - 始终拦截，多方式获取完整内容
+    // v24: 模式切换 - textarea(方案A) / contenteditable(方案B)
+    var modeTaBtn = $('modeTextareaBtn');
+    var modeEdBtn = $('modeEditableBtn');
+    if (modeTaBtn && modeEdBtn) {
+        modeTaBtn.addEventListener('click', function() {
+            switchBatchMode('textarea');
+        });
+        modeEdBtn.addEventListener('click', function() {
+            switchBatchMode('editable');
+        });
+    }
+
+    // v24: 方案A - textarea 原生粘贴（不拦截 paste），input 事件延迟读取
     var batchTa = $('batchText');
     if (batchTa) {
-        batchTa.addEventListener('paste', function(e) {
-            e.preventDefault();
-            var pastedText = '';
-            var cd = e.clipboardData || window.clipboardData;
-            if (cd) {
-                try { pastedText = cd.getData('text/plain') || ''; } catch(ex) {}
-                if (!pastedText) { try { pastedText = cd.getData('text') || ''; } catch(ex) {} }
-            }
-            if (!pastedText && cd && cd.items) {
-                for (var idx = 0; idx < cd.items.length; idx++) {
-                    if (cd.items[idx].type === 'text/plain') {
-                        cd.items[idx].getAsString(function(str) { insertBatchText(str); });
-                        return;
+        batchTa.addEventListener('input', function() {
+            setTimeout(function() {
+                var val = batchTa.value;
+                var nlc = (val.match(/\n/g) || []).length;
+                var diag = $('batchDiag');
+                if (diag) {
+                    diag.textContent = '📊 [textarea] 字数: ' + val.length + ' | 行数: ' + (nlc + 1);
+                    if (nlc >= 2) {
+                        diag.style.color = 'var(--primary)';
+                        diag.textContent += ' ✓ 多行内容已接收';
                     }
                 }
-            }
-            if (pastedText) { insertBatchText(pastedText); }
+            }, 200);
         });
+    }
 
-        function insertBatchText(text) {
-            if (!text) return;
-            var start = batchTa.selectionStart;
-            var end = batchTa.selectionEnd;
-            var before = batchTa.value.substring(0, start);
-            var after = batchTa.value.substring(end);
-            batchTa.value = before + text + after;
-            var cursorPos = start + text.length;
-            batchTa.setSelectionRange(cursorPos, cursorPos);
-        }
+    // v24: 方案B - contenteditable div 原生粘贴（不拦截 paste），input 事件延迟读取
+    var batchEd = $('batchEditable');
+    if (batchEd) {
+        batchEd.addEventListener('input', function() {
+            setTimeout(function() {
+                var val = batchEd.innerText;
+                var nlc = (val.match(/\n/g) || []).length;
+                var diag = $('batchDiag');
+                if (diag) {
+                    diag.textContent = '📊 [contenteditable] 字数: ' + val.length + ' | 行数: ' + (nlc + 1);
+                    if (nlc >= 2) {
+                        diag.style.color = 'var(--primary)';
+                        diag.textContent += ' ✓ 多行内容已接收';
+                    }
+                }
+            }, 200);
+        });
     }
 
     // Settings
@@ -839,17 +859,99 @@ function clearMessages(contactId) {
     });
 }
 
+/* ===== v24: 批量粘贴辅助函数 ===== */
+
+// 获取当前模式的文本内容
+function getBatchText() {
+    if (batchEditMode === 'editable') {
+        var ed = $('batchEditable');
+        return ed ? (ed.innerText || '') : '';
+    }
+    var ta = $('batchText');
+    return ta ? ta.value : '';
+}
+
+// 设置当前模式的文本内容
+function setBatchText(text) {
+    var ta = $('batchText');
+    var ed = $('batchEditable');
+    if (ta) ta.value = text;
+    if (ed) ed.innerText = text;
+}
+
+// 更新诊断信息
+function updateBatchDiag() {
+    var val = getBatchText();
+    var nlc = (val.match(/\n/g) || []).length;
+    var diag = $('batchDiag');
+    if (diag) {
+        diag.textContent = '📊 [' + batchEditMode + '] 字数: ' + val.length + ' | 行数: ' + (nlc + 1);
+        if (nlc >= 2) {
+            diag.style.color = 'var(--primary)';
+            diag.textContent += ' ✓ 多行内容已接收';
+        } else {
+            diag.style.color = 'var(--text-secondary)';
+        }
+    }
+}
+
+// 切换批量粘贴模式
+function switchBatchMode(mode) {
+    // 保存当前内容
+    var currentText = getBatchText();
+    batchEditMode = mode;
+
+    var ta = $('batchText');
+    var ed = $('batchEditable');
+    var taBtn = $('modeTextareaBtn');
+    var edBtn = $('modeEditableBtn');
+
+    if (mode === 'editable') {
+        if (ta) ta.style.display = 'none';
+        if (ed) ed.style.display = '';
+        if (taBtn) { taBtn.classList.remove('active'); taBtn.style.background = 'var(--card-bg)'; taBtn.style.color = 'var(--text-secondary)'; }
+        if (edBtn) { edBtn.classList.add('active'); edBtn.style.background = 'var(--primary)'; edBtn.style.color = '#fff'; }
+    } else {
+        if (ta) ta.style.display = '';
+        if (ed) ed.style.display = 'none';
+        if (taBtn) { taBtn.classList.add('active'); taBtn.style.background = 'var(--primary)'; taBtn.style.color = '#fff'; }
+        if (edBtn) { edBtn.classList.remove('active'); edBtn.style.background = 'var(--card-bg)'; edBtn.style.color = 'var(--text-secondary)'; }
+    }
+
+    // 恢复内容到新模式
+    setBatchText(currentText);
+    updateBatchDiag();
+
+    // 聚焦到当前模式的元素
+    setTimeout(function() {
+        if (mode === 'editable' && ed) { ed.focus(); }
+        else if (ta) { ta.focus(); }
+    }, 100);
+}
+
 function batchPaste() {
     if (!currentContactId) {
         alert('请先选择联系人');
         return;
     }
-    $('batchText').value = '';
+    // v24: 清空两种模式的内容，重置为 textarea 模式
+    setBatchText('');
+    batchEditMode = 'textarea';
+    var ta = $('batchText');
+    var ed = $('batchEditable');
+    if (ta) ta.style.display = '';
+    if (ed) ed.style.display = 'none';
+    var taBtn = $('modeTextareaBtn');
+    var edBtn = $('modeEditableBtn');
+    if (taBtn) { taBtn.classList.add('active'); taBtn.style.background = 'var(--primary)'; taBtn.style.color = '#fff'; }
+    if (edBtn) { edBtn.classList.remove('active'); edBtn.style.background = 'var(--card-bg)'; edBtn.style.color = 'var(--text-secondary)'; }
+    var diag = $('batchDiag');
+    if (diag) { diag.textContent = '📊 等待粘贴...'; diag.style.color = 'var(--text-secondary)'; }
     $('batchModal').classList.remove('hidden');
 }
 
 function importBatch() {
-    var text = $('batchText').value.trim();
+    var text = getBatchText().trim();
     if (!text) {
         alert('请输入对话内容');
         return;
