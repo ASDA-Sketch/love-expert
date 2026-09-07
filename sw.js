@@ -1,6 +1,6 @@
-// Service Worker v23 - No-op (pass-through)
+// Service Worker v24 - No-op (pass-through)
 // 彻底清除所有旧缓存，不拦截任何请求，防止旧缓存导致页面闪烁
-const CACHE_NAME = 'love-expert-v23';
+const CACHE_NAME = 'love-expert-v24';
 
 // 安装：清除所有缓存 + 立即跳过等待
 self.addEventListener('install', (e) => {
@@ -8,7 +8,7 @@ self.addEventListener('install', (e) => {
     caches.keys().then(function(keys) {
       return Promise.all(keys.map(function(k) { return caches.delete(k); }));
     }).then(function() {
-      console.log('SW v23: All caches cleared on install');
+      console.log('SW v24: All caches cleared on install');
     })
   );
   self.skipWaiting();
@@ -20,7 +20,7 @@ self.addEventListener('activate', (e) => {
     caches.keys().then(function(keys) {
       return Promise.all(keys.map(function(k) { return caches.delete(k); }));
     }).then(function() {
-      console.log('SW v23: All caches cleared on activate');
+      console.log('SW v24: All caches cleared on activate');
     })
   );
   self.clients.claim();
