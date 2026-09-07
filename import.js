@@ -22,18 +22,50 @@ var TIME_LINE_RE = new RegExp('^(' + DATETIME_RE + '|' + TIME_RE + '|' + DATE_RE
 var NAME_TIME_RE = new RegExp('^(.+?)\\s+(' + DATETIME_RE + '|' + TIME_RE + ')\\s*$', 'i');
 
 /**
+ * 清除不可见字符（零宽空格、BOM等）并将 Unicode 行分隔符转为 \n
+ * @param {string} text
+ * @returns {string}
+ */
+function stripInvisible(text) {
+  // Remove zero-width characters and BOM
+  text = text.replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+  // Convert Unicode line/paragraph separators to \n
+  text = text.replace(/[\u2028\u2029]/g, '\n');
+  // Convert various Unicode spaces to regular space
+  text = text.replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g, ' ');
+  return text;
+}
+
+/**
  * 主解析函数
  * @param {string} text - 用户粘贴的原始文本
  * @param {string} contactName - 当前联系人名字
  * @returns {{role:'them'|'me', content:string, timestamp?:string}[]}
  */
 function parseChatHistory(text, contactName) {
-  // 统一换行
-  text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+  // 统一换行符（\r\n → \n, \r → \n）
+  text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  // 清除不可见字符（零宽空格、BOM等），将 Unicode 行分隔符转为 \n
+  text = stripInvisible(text);
+  text = text.trim();
   if (!text) return [];
 
   var lines = text.split('\n');
   var messages = [];
+
+  // 清理每一行的不可见字符和首尾空白
+  for (var k = 0; k < lines.length; k++) {
+    lines[k] = stripInvisible(lines[k]).trim();
+  }
+
+  // 清理 contactName 的不可见字符
+  if (contactName) contactName = stripInvisible(contactName).trim();
+
+  // 统计每行出现的次数（用于名字识别：名字会重复出现）
+  var lineCounts = {};
+  for (var lc = 0; lc < lines.length; lc++) {
+    if (lines[lc]) lineCounts[lines[lc]] = (lineCounts[lines[lc]] || 0) + 1;
+  }
 
   // ===== 格式检测 =====
 
@@ -47,12 +79,12 @@ function parseChatHistory(text, contactName) {
   var nameOnlyLines = []; // 名字独占行（格式B）
 
   for (var i = 0; i < lines.length; i++) {
-    var line = lines[i].trim();
+    var line = lines[i];
     if (!line) continue;
 
     // 检测格式0：名字行 + 下一行是时间行
     if (!hasFmt0 && i + 1 < lines.length) {
-      var nextLine = lines[i + 1].trim();
+      var nextLine = lines[i + 1];
       if (isPossibleName(line, contactName) && TIME_LINE_RE.test(nextLine)) {
         hasFmt0 = true;
       }
@@ -74,9 +106,9 @@ function parseChatHistory(text, contactName) {
 
     // 检测名字独占行（格式B）：短文本，不是时间，不含冒号，下一行有内容且不是时间
     if (line.length <= 10 && !NAME_TIME_RE.test(line) && !TIME_LINE_RE.test(line) && !line.match(/^\d/) && !/[：:]/.test(line)) {
-      var nextForName = (i + 1 < lines.length) ? lines[i + 1].trim() : '';
+      var nextForName = (i + 1 < lines.length) ? lines[i + 1] : '';
       if (nextForName && !TIME_LINE_RE.test(nextForName) && !NAME_TIME_RE.test(nextForName)) {
-        if (isPossibleName(line, contactName)) {
+        if (isLikelyName(line, contactName, lineCounts)) {
           nameOnlyLines.push({ lineIdx: i, name: line });
         }
       }
@@ -123,6 +155,25 @@ function isPossibleName(text, contactName) {
   }
   // 1-10个字符的中文名字
   if (/^[\u4e00-\u9fa5a-zA-Z]{1,10}$/.test(text)) return true;
+  return false;
+}
+
+/**
+ * 更严格的名字判断（用于格式B名字独占行检测）
+ * 只有满足以下条件之一才认为是名字：
+ * 1. 常见代词（我、对方、ta等）
+ * 2. 匹配联系人名字
+ * 3. 在文本中出现多次且较短（名字会重复出现）
+ */
+function isLikelyName(text, contactName, lineCounts) {
+  var lower = text.toLowerCase().trim();
+  if (lower === '我' || lower === 'i' || lower === 'me' || lower === '自己' || text === '本人') return true;
+  if (text === '对方' || lower === 'ta' || text === '他' || text === '她' || text === '对方说') return true;
+  if (contactName) {
+    var cn = contactName.trim().toLowerCase();
+    if (lower === cn || cn.indexOf(lower) !== -1 || lower.indexOf(cn) !== -1) return true;
+  }
+  if (lineCounts && lineCounts[text] >= 2 && text.length <= 4) return true;
   return false;
 }
 
