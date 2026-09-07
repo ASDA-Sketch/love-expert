@@ -300,7 +300,7 @@ function setupEventListeners() {
     // Batch paste
     $('importBatchBtn').addEventListener('click', importBatch);
 
-    // v20: 从剪贴板粘贴按钮（手机端推荐）
+    // v21: 从剪贴板粘贴按钮
     var clipBtn = $('clipboardPasteBtn');
     if (clipBtn) {
         clipBtn.addEventListener('click', function() {
@@ -310,23 +310,66 @@ function setupEventListeners() {
                     if (text) {
                         ta.value = text;
                         ta.focus();
-                        // 移动光标到末尾
                         var len = ta.value.length;
                         ta.setSelectionRange(len, len);
                     } else {
                         alert('剪贴板为空，请先在微信中复制聊天记录');
                     }
-                }).catch(function(err) {
-                    alert('无法读取剪贴板，请手动长按文本框选择"粘贴"');
+                }).catch(function() {
+                    alert('无法读取剪贴板。请用"上传txt文件"功能：\n1.在微信中复制聊天记录\n2.粘贴到手机备忘录\n3.保存为txt文件\n4.用"上传txt文件"按钮选择该文件');
                 });
             } else {
-                ta.focus();
-                alert('当前浏览器不支持剪贴板读取，请手动长按文本框选择"粘贴"');
+                alert('当前浏览器不支持剪贴板读取。请用"上传txt文件"功能。');
             }
         });
     }
 
-    // v20: paste 事件处理 - 确保完整多行内容被插入（修复手机端只粘贴一条）
+    // v21: 文件上传功能
+    var fileBtn = $('fileUploadBtn');
+    var fileInput = $('batchFileInput');
+    if (fileBtn && fileInput) {
+        fileBtn.addEventListener('click', function() {
+            fileInput.click();
+        });
+        fileInput.addEventListener('change', function(e) {
+            var file = e.target.files[0];
+            if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function(ev) {
+                $('batchText').value = ev.target.result;
+                alert('文件已加载：' + file.name + '\n内容字符数：' + ev.target.result.length);
+            };
+            reader.onerror = function() {
+                alert('读取文件失败');
+            };
+            reader.readAsText(file, 'UTF-8');
+            e.target.value = ''; // 允许重复选择同一文件
+        });
+    }
+
+    // v21: 调试按钮 - 显示 textarea 中的原始内容分析
+    var debugBtn = $('debugBatchBtn');
+    if (debugBtn) {
+        debugBtn.addEventListener('click', function() {
+            var ta = $('batchText');
+            var val = ta.value;
+            var nlCount = (val.match(/\n/g) || []).length;
+            var crlfCount = (val.match(/\r\n/g) || []).length;
+            var crCount = (val.match(/\r/g) || []).length;
+            var unicodeSepCount = (val.match(/[\u2028\u2029]/g) || []).length;
+            var info = '=== 调试信息 ===\n';
+            info += '总字符数: ' + val.length + '\n';
+            info += '\\n 换行数: ' + nlCount + '\n';
+            info += '\\r\\n 换行数: ' + crlfCount + '\n';
+            info += '\\r 换行数: ' + crCount + '\n';
+            info += 'Unicode分隔符: ' + unicodeSepCount + '\n';
+            info += '前200字符:\n' + val.substring(0, 200);
+            if (val.length > 200) info += '\n...(共' + val.length + '字符)';
+            alert(info);
+        });
+    }
+
+    // v21: paste 事件处理 - 确保完整多行内容被插入
     var batchTa = $('batchText');
     if (batchTa) {
         batchTa.addEventListener('paste', function(e) {
@@ -335,13 +378,11 @@ function setupEventListeners() {
                 var pastedText = clipboardData.getData('text/plain');
                 if (pastedText && pastedText.indexOf('\n') !== -1) {
                     e.preventDefault();
-                    // 手动插入完整多行文本
                     var start = batchTa.selectionStart;
                     var end = batchTa.selectionEnd;
                     var before = batchTa.value.substring(0, start);
                     var after = batchTa.value.substring(end);
                     batchTa.value = before + pastedText + after;
-                    // 移动光标到插入内容末尾
                     var cursorPos = start + pastedText.length;
                     batchTa.setSelectionRange(cursorPos, cursorPos);
                 }
