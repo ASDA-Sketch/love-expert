@@ -841,17 +841,6 @@ button {
     margin-top: 4px;
 }
 
-/* v24: contenteditable placeholder */
-#batchEditable:empty:before {
-    content: "直接粘贴微信聊天记录（contenteditable 模式）";
-    color: var(--text-secondary);
-    opacity: 0.6;
-}
-#batchEditable:focus { border-color: var(--primary); }
-
-/* v24: mode tab transition */
-.mode-tab { transition: background 0.2s, color 0.2s; }
-
 /* Quoted Message */
 .quoted-message {
     background: var(--bg);
