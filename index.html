@@ -12,16 +12,16 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <link rel="manifest" href="manifest.json?v=22">
+    <link rel="manifest" href="manifest.json?v=23">
     <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="icon" href="icon-192.png">
-    <link rel="stylesheet" href="style.css?v=22">
+    <link rel="stylesheet" href="style.css?v=23">
     <title>恋爱聊天助手</title>
     <script>
-    // v22: 追加粘贴模式 - 手机端逐条粘贴累加，解决只保留第一条的问题
+    // v23: 文件上传为首选方案，paste 事件始终拦截，单行容错解析
     (function() {
         var VERSION_KEY = 'love_expert_sw_version';
-        var NEW_VERSION = 'v22';
+        var NEW_VERSION = 'v23';
         var currentVersion = localStorage.getItem(VERSION_KEY);
 
         // 每次版本升级时清理旧 SW 和缓存
@@ -40,10 +40,10 @@
             });
         }
 
-        // 注册 no-op SW (v22) - 不监听 controllerchange，不自动 reload
+        // 注册 no-op SW (v23) - 不监听 controllerchange，不自动 reload
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
-                navigator.serviceWorker.register('sw.js?v=22').catch(function(e) {
+                navigator.serviceWorker.register('sw.js?v=23').catch(function(e) {
                     console.warn('SW registration failed:', e);
                 });
             });
@@ -184,19 +184,17 @@
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label>粘贴微信聊天记录</label>
-                    <div style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap;">
-                        <button id="clipboardPasteBtn" type="button" style="flex:1;padding:10px;border:2px dashed var(--primary);border-radius:8px;background:var(--primary-light);color:var(--primary);font-size:13px;cursor:pointer;">📋 从剪贴板粘贴</button>
-                        <button id="fileUploadBtn" type="button" style="flex:1;padding:10px;border:2px dashed var(--primary);border-radius:8px;background:var(--primary-light);color:var(--primary);font-size:13px;cursor:pointer;">📁 上传txt文件</button>
+                    <!-- 文件上传 - 首选方案，最醒目 -->
+                    <div id="fileUploadArea" style="margin-bottom:12px;padding:16px;border:3px dashed var(--primary);border-radius:12px;background:var(--primary-light);text-align:center;cursor:pointer;" onclick="document.getElementById('batchFileInput').click()">
+                        <div style="font-size:32px;margin-bottom:4px;">📁</div>
+                        <div style="font-size:15px;font-weight:700;color:var(--primary);">点击上传 txt 文件</div>
+                        <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">手机最可靠的方式：微信复制→备忘录粘贴→存txt→上传</div>
                     </div>
                     <input type="file" id="batchFileInput" accept=".txt,text/plain" style="display:none;">
-                    <div id="appendModeBar" style="margin-bottom:6px;padding:8px 10px;background:var(--primary-light);border-radius:8px;display:flex;align-items:center;gap:8px;">
-                        <input type="checkbox" id="appendModeChk" style="width:18px;height:18px;cursor:pointer;">
-                        <label for="appendModeChk" style="font-size:13px;color:var(--primary);font-weight:600;cursor:pointer;flex:1;">追加模式（手机逐条粘贴推荐）</label>
-                        <button id="appendBtn" type="button" style="padding:6px 12px;border:none;border-radius:6px;background:var(--primary);color:#fff;font-size:12px;cursor:pointer;white-space:nowrap;">➕ 追加</button>
-                    </div>
-                    <textarea id="batchText" rows="8" placeholder="粘贴或上传聊天记录&#10;&#10;手机用户：勾选「追加模式」后，每次粘贴会累加到末尾，不会覆盖之前内容"></textarea>
-                    <p class="format-hint">自动识别"我"为我说的，联系人名字为对方说的。手机如粘贴有问题请用「追加模式」或「上传txt文件」。</p>
+                    <!-- 分割线 -->
+                    <div style="text-align:center;margin:8px 0;font-size:12px;color:var(--text-secondary);">—— 或者直接粘贴 ——</div>
+                    <textarea id="batchText" rows="8" placeholder="直接粘贴微信聊天记录（电脑端推荐）"></textarea>
+                    <p class="format-hint">自动识别"我"为我说的，联系人名字为对方说的。</p>
                 </div>
             </div>
             <div class="modal-footer" style="gap:6px;">
@@ -301,12 +299,12 @@
     </div>
 
     <!-- Scripts (loaded in order) -->
-    <script src="db.js?v=22"></script>
-    <script src="prompts.js?v=22"></script>
-    <script src="demo_data.js?v=22"></script>
-    <script src="ai.js?v=22"></script>
-    <script src="auth.js?v=22"></script>
-    <script src="import.js?v=22"></script>
-    <script src="app.js?v=22"></script>
+    <script src="db.js?v=23"></script>
+    <script src="prompts.js?v=23"></script>
+    <script src="demo_data.js?v=23"></script>
+    <script src="ai.js?v=23"></script>
+    <script src="auth.js?v=23"></script>
+    <script src="import.js?v=23"></script>
+    <script src="app.js?v=23"></script>
 </body>
 </html>
