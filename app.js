@@ -163,26 +163,8 @@ function startApp() {
         updateModelStatus();
     });
 
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js?v=18').then(function(reg) {
-            if (reg.waiting) {
-                reg.waiting.postMessage('skipWaiting');
-            }
-            reg.addEventListener('updatefound', function() {
-                var newSW = reg.installing;
-                if (newSW) {
-                    newSW.addEventListener('statechange', function() {
-                        if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
-                            newSW.postMessage('skipWaiting');
-                        }
-                    });
-                }
-            });
-        }).catch(function(err) {
-            console.log('Service Worker registration failed:', err);
-        });
-        // v18: 不监听 controllerchange，不自动 reload（防止无限刷新循环）
-    }
+    // v19: SW registration moved to index.html inline script only
+    // 不在 app.js 中注册 SW，避免 updatefound/skipWaiting 触发 controllerchange 循环
 }
 
 function setupActivation() {
