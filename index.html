@@ -12,16 +12,16 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <link rel="manifest" href="manifest.json?v=21">
+    <link rel="manifest" href="manifest.json?v=22">
     <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="icon" href="icon-192.png">
-    <link rel="stylesheet" href="style.css?v=21">
+    <link rel="stylesheet" href="style.css?v=22">
     <title>恋爱聊天助手</title>
     <script>
-    // v21: 修复手机端粘贴 - 添加文件上传、调试按钮、增强单行解析
+    // v22: 追加粘贴模式 - 手机端逐条粘贴累加，解决只保留第一条的问题
     (function() {
         var VERSION_KEY = 'love_expert_sw_version';
-        var NEW_VERSION = 'v21';
+        var NEW_VERSION = 'v22';
         var currentVersion = localStorage.getItem(VERSION_KEY);
 
         // 每次版本升级时清理旧 SW 和缓存
@@ -40,10 +40,10 @@
             });
         }
 
-        // 注册 no-op SW (v21) - 不监听 controllerchange，不自动 reload
+        // 注册 no-op SW (v22) - 不监听 controllerchange，不自动 reload
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
-                navigator.serviceWorker.register('sw.js?v=21').catch(function(e) {
+                navigator.serviceWorker.register('sw.js?v=22').catch(function(e) {
                     console.warn('SW registration failed:', e);
                 });
             });
@@ -190,8 +190,13 @@
                         <button id="fileUploadBtn" type="button" style="flex:1;padding:10px;border:2px dashed var(--primary);border-radius:8px;background:var(--primary-light);color:var(--primary);font-size:13px;cursor:pointer;">📁 上传txt文件</button>
                     </div>
                     <input type="file" id="batchFileInput" accept=".txt,text/plain" style="display:none;">
-                    <textarea id="batchText" rows="10" placeholder="粘贴或上传聊天记录&#10;&#10;支持格式：&#10;小美  2024-09-04 11:30&#10;你今天干嘛了&#10;我  2024-09-04 11:31&#10;没干嘛&#10;&#10;或：小美: 你好 / 我: 在吗&#10;&#10;或纯对话交替"></textarea>
-                    <p class="format-hint">自动识别"我"为我说的，联系人名字为对方说的。手机如粘贴有问题请用"上传txt文件"。</p>
+                    <div id="appendModeBar" style="margin-bottom:6px;padding:8px 10px;background:var(--primary-light);border-radius:8px;display:flex;align-items:center;gap:8px;">
+                        <input type="checkbox" id="appendModeChk" style="width:18px;height:18px;cursor:pointer;">
+                        <label for="appendModeChk" style="font-size:13px;color:var(--primary);font-weight:600;cursor:pointer;flex:1;">追加模式（手机逐条粘贴推荐）</label>
+                        <button id="appendBtn" type="button" style="padding:6px 12px;border:none;border-radius:6px;background:var(--primary);color:#fff;font-size:12px;cursor:pointer;white-space:nowrap;">➕ 追加</button>
+                    </div>
+                    <textarea id="batchText" rows="8" placeholder="粘贴或上传聊天记录&#10;&#10;手机用户：勾选「追加模式」后，每次粘贴会累加到末尾，不会覆盖之前内容"></textarea>
+                    <p class="format-hint">自动识别"我"为我说的，联系人名字为对方说的。手机如粘贴有问题请用「追加模式」或「上传txt文件」。</p>
                 </div>
             </div>
             <div class="modal-footer" style="gap:6px;">
@@ -296,12 +301,12 @@
     </div>
 
     <!-- Scripts (loaded in order) -->
-    <script src="db.js?v=21"></script>
-    <script src="prompts.js?v=21"></script>
-    <script src="demo_data.js?v=21"></script>
-    <script src="ai.js?v=21"></script>
-    <script src="auth.js?v=21"></script>
-    <script src="import.js?v=21"></script>
-    <script src="app.js?v=21"></script>
+    <script src="db.js?v=22"></script>
+    <script src="prompts.js?v=22"></script>
+    <script src="demo_data.js?v=22"></script>
+    <script src="ai.js?v=22"></script>
+    <script src="auth.js?v=22"></script>
+    <script src="import.js?v=22"></script>
+    <script src="app.js?v=22"></script>
 </body>
 </html>
