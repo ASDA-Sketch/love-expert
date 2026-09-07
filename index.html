@@ -12,16 +12,16 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <link rel="manifest" href="manifest.json?v=20">
+    <link rel="manifest" href="manifest.json?v=21">
     <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="icon" href="icon-192.png">
-    <link rel="stylesheet" href="style.css?v=20">
+    <link rel="stylesheet" href="style.css?v=21">
     <title>恋爱聊天助手</title>
     <script>
-    // v20: 修复手机端批量粘贴只粘贴一条的问题 - 添加剪贴板按钮和 paste 事件处理
+    // v21: 修复手机端粘贴 - 添加文件上传、调试按钮、增强单行解析
     (function() {
         var VERSION_KEY = 'love_expert_sw_version';
-        var NEW_VERSION = 'v20';
+        var NEW_VERSION = 'v21';
         var currentVersion = localStorage.getItem(VERSION_KEY);
 
         // 每次版本升级时清理旧 SW 和缓存
@@ -40,10 +40,10 @@
             });
         }
 
-        // 注册 no-op SW (v20) - 不监听 controllerchange，不自动 reload
+        // 注册 no-op SW (v21) - 不监听 controllerchange，不自动 reload
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
-                navigator.serviceWorker.register('sw.js?v=20').catch(function(e) {
+                navigator.serviceWorker.register('sw.js?v=21').catch(function(e) {
                     console.warn('SW registration failed:', e);
                 });
             });
@@ -185,15 +185,18 @@
             <div class="modal-body">
                 <div class="form-group">
                     <label>粘贴微信聊天记录</label>
-                    <div style="margin-bottom: 8px;">
-                        <button id="clipboardPasteBtn" type="button" style="width:100%;padding:10px;border:2px dashed var(--primary);border-radius:8px;background:var(--primary-light);color:var(--primary);font-size:14px;cursor:pointer;">📥 从剪贴板粘贴（手机推荐）</button>
+                    <div style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap;">
+                        <button id="clipboardPasteBtn" type="button" style="flex:1;padding:10px;border:2px dashed var(--primary);border-radius:8px;background:var(--primary-light);color:var(--primary);font-size:13px;cursor:pointer;">📋 从剪贴板粘贴</button>
+                        <button id="fileUploadBtn" type="button" style="flex:1;padding:10px;border:2px dashed var(--primary);border-radius:8px;background:var(--primary-light);color:var(--primary);font-size:13px;cursor:pointer;">📁 上传txt文件</button>
                     </div>
-                    <textarea id="batchText" rows="12" placeholder="支持以下格式，直接从微信复制粘贴：&#10;&#10;格式1（名字+时间）：&#10;小美  2024-09-04 11:30&#10;你今天干嘛了&#10;我  2024-09-04 11:31&#10;没干嘛，在家躺着&#10;&#10;格式2（名字: 内容）：&#10;小美: 你今天干嘛了&#10;我: 没干嘛&#10;&#10;格式3（纯对话，交替分配）：&#10;你今天干嘛了&#10;没干嘛，在家躺着"></textarea>
-                    <p class="format-hint">自动识别"我"为我说的，联系人名字为对方说的。无名字时交替分配。</p>
+                    <input type="file" id="batchFileInput" accept=".txt,text/plain" style="display:none;">
+                    <textarea id="batchText" rows="10" placeholder="粘贴或上传聊天记录&#10;&#10;支持格式：&#10;小美  2024-09-04 11:30&#10;你今天干嘛了&#10;我  2024-09-04 11:31&#10;没干嘛&#10;&#10;或：小美: 你好 / 我: 在吗&#10;&#10;或纯对话交替"></textarea>
+                    <p class="format-hint">自动识别"我"为我说的，联系人名字为对方说的。手机如粘贴有问题请用"上传txt文件"。</p>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button id="importBatchBtn" class="btn-primary">解析并导入</button>
+            <div class="modal-footer" style="gap:6px;">
+                <button id="debugBatchBtn" type="button" style="padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text-secondary);font-size:13px;cursor:pointer;">🔍 调试</button>
+                <button id="importBatchBtn" class="btn-primary" style="flex:1;">解析并导入</button>
             </div>
         </div>
     </div>
@@ -293,12 +296,12 @@
     </div>
 
     <!-- Scripts (loaded in order) -->
-    <script src="db.js?v=20"></script>
-    <script src="prompts.js?v=20"></script>
-    <script src="demo_data.js?v=20"></script>
-    <script src="ai.js?v=20"></script>
-    <script src="auth.js?v=20"></script>
-    <script src="import.js?v=20"></script>
-    <script src="app.js?v=20"></script>
+    <script src="db.js?v=21"></script>
+    <script src="prompts.js?v=21"></script>
+    <script src="demo_data.js?v=21"></script>
+    <script src="ai.js?v=21"></script>
+    <script src="auth.js?v=21"></script>
+    <script src="import.js?v=21"></script>
+    <script src="app.js?v=21"></script>
 </body>
 </html>
