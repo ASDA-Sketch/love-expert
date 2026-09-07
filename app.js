@@ -7,7 +7,7 @@
 var currentContactId = null;
 var currentPanel = 'contacts';
 var generatedTopics = [];
-var replyState = { quotedMessage: '', style: '', customIntent: '' };
+var replyState = { quotedMessage: '', style: '', customIntent: '', contactId: null };
 var selectedScene = '刚认识';
 var editingContactId = null;
 
@@ -79,6 +79,26 @@ function fallbackCopy(text) {
     ta.select();
     try { document.execCommand('copy'); } catch (e) {}
     document.body.removeChild(ta);
+}
+
+function showToast(msg) {
+    var toast = document.querySelector('.copy-toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.className = 'copy-toast';
+        document.body.appendChild(toast);
+    }
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(function() {
+        toast.classList.remove('show');
+    }, 1500);
+}
+
+function copyMessageText(content) {
+    copyText(content);
+    showToast('已复制');
 }
 
 function showLoading(el) {
@@ -328,8 +348,11 @@ function setupEventListeners() {
                 replyState.style = btn.dataset.style;
                 if (btn.dataset.style === 'guide_topic') {
                     $('customIntentGroup').classList.remove('hidden');
+                    $('customIntent').focus();
                 } else {
                     $('customIntentGroup').classList.add('hidden');
+                    // Auto-regenerate with the selected style
+                    generateReplies();
                 }
             });
         })(styleBtns[s]);
@@ -635,6 +658,27 @@ function renderMessage(msg) {
             deleteMessage(msg.id);
         });
     }
+
+    // Long-press to copy (mobile) / right-click to copy (desktop)
+    var pressTimer = null;
+    bubble.addEventListener('touchstart', function(e) {
+        if (e.target.closest('.msg-action')) return;
+        pressTimer = setTimeout(function() {
+            pressTimer = null;
+            copyMessageText(msg.content);
+        }, 500);
+    });
+    bubble.addEventListener('touchend', function() {
+        if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+    });
+    bubble.addEventListener('touchmove', function() {
+        if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+    });
+    bubble.addEventListener('contextmenu', function(e) {
+        if (e.target.closest('.msg-action')) return;
+        e.preventDefault();
+        copyMessageText(msg.content);
+    });
 
     area.appendChild(bubble);
 }
@@ -1019,8 +1063,10 @@ function openReplyPanel(quotedMessage) {
         return;
     }
 
+    // Capture contactId at open time to prevent cross-contact note mixing
+    replyState.contactId = currentContactId;
     replyState.quotedMessage = quotedMessage;
-    replyState.style = '';
+    replyState.style = 'auto';
     replyState.customIntent = '';
 
     $('quotedMessageBlock').textContent = quotedMessage;
@@ -1034,13 +1080,13 @@ function openReplyPanel(quotedMessage) {
     }
 
     $('replyModal').classList.remove('hidden');
+
+    // Auto-generate smart reply immediately (智能推荐 mode)
+    generateReplies();
 }
 
 function generateReplies() {
-    if (!replyState.style) {
-        alert('请选择回复风格');
-        return;
-    }
+    var style = replyState.style || 'auto';
 
     var resultsDiv = $('repliesContent');
     showLoading(resultsDiv);
@@ -1050,12 +1096,17 @@ function generateReplies() {
         return;
     }
 
+    // Use captured contactId to prevent cross-contact note mixing
+    var contactId = replyState.contactId || currentContactId;
     replyState.customIntent = $('customIntent').value.trim();
+
+    console.log('[generateReplies] contactId=' + contactId + ' style=' + style + ' currentContactId=' + currentContactId);
+
     window.ai.generateReplies(
         replyState.quotedMessage,
-        replyState.style,
+        style,
         replyState.customIntent,
-        currentContactId
+        contactId
     ).then(function(replies) {
         renderReplies(replies);
     }).catch(function(err) {
