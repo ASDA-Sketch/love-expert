@@ -12,16 +12,16 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <link rel="manifest" href="manifest.json?v=24">
+    <link rel="manifest" href="manifest.json?v=25">
     <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="icon" href="icon-192.png">
-    <link rel="stylesheet" href="style.css?v=24">
+    <link rel="stylesheet" href="style.css?v=25">
     <title>恋爱聊天助手</title>
     <script>
-    // v24: 移除 paste 拦截，原生粘贴 + input 延迟读取；新增 contenteditable 模式
+    // v25: 清理批量导入弹窗，只保留文件上传 + 普通粘贴文本框
     (function() {
         var VERSION_KEY = 'love_expert_sw_version';
-        var NEW_VERSION = 'v24';
+        var NEW_VERSION = 'v25';
         var currentVersion = localStorage.getItem(VERSION_KEY);
 
         // 每次版本升级时清理旧 SW 和缓存
@@ -40,10 +40,10 @@
             });
         }
 
-        // 注册 no-op SW (v24) - 不监听 controllerchange，不自动 reload
+        // 注册 no-op SW (v25) - 不监听 controllerchange，不自动 reload
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
-                navigator.serviceWorker.register('sw.js?v=24').catch(function(e) {
+                navigator.serviceWorker.register('sw.js?v=25').catch(function(e) {
                     console.warn('SW registration failed:', e);
                 });
             });
@@ -193,23 +193,12 @@
                     <input type="file" id="batchFileInput" accept=".txt,text/plain" style="display:none;">
                     <!-- 分割线 -->
                     <div style="text-align:center;margin:8px 0;font-size:12px;color:var(--text-secondary);">—— 或者直接粘贴 ——</div>
-                    <!-- v24: 模式切换 -->
-                    <div id="batchModeToggle" style="display:flex;gap:0;margin-bottom:6px;border-radius:8px;overflow:hidden;border:2px solid var(--border);">
-                        <button type="button" id="modeTextareaBtn" class="mode-tab active" style="flex:1;padding:7px;border:none;background:var(--primary);color:#fff;font-size:12px;font-weight:600;cursor:pointer;">📝 textarea 模式</button>
-                        <button type="button" id="modeEditableBtn" class="mode-tab" style="flex:1;padding:7px;border:none;background:var(--card-bg);color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;">✏️ contenteditable 模式</button>
-                    </div>
-                    <!-- v24: 诊断信息 -->
-                    <div id="batchDiag" style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;min-height:16px;">📊 等待粘贴...</div>
-                    <!-- Plan A: textarea（原生粘贴，不拦截 paste） -->
-                    <textarea id="batchText" rows="8" placeholder="直接粘贴微信聊天记录"></textarea>
-                    <!-- Plan B: contenteditable div（不拦截 paste） -->
-                    <div id="batchEditable" contenteditable="plaintext-only" style="display:none;min-height:120px;max-height:200px;overflow-y:auto;width:100%;box-sizing:border-box;padding:10px 12px;border:2px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;color:var(--text);background:var(--card-bg);outline:none;-webkit-user-select:text;user-select:text;white-space:pre-wrap;word-break:break-word;"></div>
+                    <textarea id="batchText" rows="8" placeholder="直接粘贴微信聊天记录（电脑端推荐）"></textarea>
                     <p class="format-hint">自动识别"我"为我说的，联系人名字为对方说的。</p>
                 </div>
             </div>
-            <div class="modal-footer" style="gap:6px;">
-                <button id="debugBatchBtn" type="button" style="padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text-secondary);font-size:13px;cursor:pointer;">🔍 调试</button>
-                <button id="importBatchBtn" class="btn-primary" style="flex:1;">解析并导入</button>
+            <div class="modal-footer">
+                <button id="importBatchBtn" class="btn-primary">解析并导入</button>
             </div>
         </div>
     </div>
@@ -309,12 +298,12 @@
     </div>
 
     <!-- Scripts (loaded in order) -->
-    <script src="db.js?v=24"></script>
-    <script src="prompts.js?v=24"></script>
-    <script src="demo_data.js?v=24"></script>
-    <script src="ai.js?v=24"></script>
-    <script src="auth.js?v=24"></script>
-    <script src="import.js?v=24"></script>
-    <script src="app.js?v=24"></script>
+    <script src="db.js?v=25"></script>
+    <script src="prompts.js?v=25"></script>
+    <script src="demo_data.js?v=25"></script>
+    <script src="ai.js?v=25"></script>
+    <script src="auth.js?v=25"></script>
+    <script src="import.js?v=25"></script>
+    <script src="app.js?v=25"></script>
 </body>
 </html>
