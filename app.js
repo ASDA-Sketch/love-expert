@@ -884,8 +884,9 @@ function updateBatchDiag() {
     var val = getBatchText();
     var nlc = (val.match(/\n/g) || []).length;
     var diag = $('batchDiag');
+    var modeLabel = batchEditMode === 'editable' ? 'contenteditable' : 'textarea';
     if (diag) {
-        diag.textContent = '📊 [' + batchEditMode + '] 字数: ' + val.length + ' | 行数: ' + (nlc + 1);
+        diag.textContent = '📊 [' + modeLabel + '] 字数: ' + val.length + ' | 行数: ' + (nlc + 1);
         if (nlc >= 2) {
             diag.style.color = 'var(--primary)';
             diag.textContent += ' ✓ 多行内容已接收';
