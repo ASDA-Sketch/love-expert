@@ -139,6 +139,14 @@ function parseChatHistory(text, contactName) {
     return m.content && m.content.trim().length > 0;
   });
 
+  // v21: 如果按换行分割后只解析出0-1条，尝试单行拆分（手机粘贴可能丢失换行符）
+  if (messages.length <= 1 && text.length > 20) {
+    var singleLineParsed = parseSingleLineFallback(text, contactName);
+    if (singleLineParsed.length > messages.length) {
+      messages = singleLineParsed;
+    }
+  }
+
   return messages;
 }
 
@@ -406,3 +414,151 @@ function parseAlternatingFormat(lines) {
 
 // 导出到 window 全局
 window.parseChatHistory = parseChatHistory;
+
+/**
+ * v21: 单行文本兜底解析
+ * 当手机端粘贴丢失换行符，多行内容被合并成一行时，尝试用以下模式拆分：
+ * 1. 时间戳作为分隔点（如 "小美 2024-09-04 11:30 你今天干嘛了 我 2024-09-04 11:31 没干嘛"）
+ * 2. 名字+冒号作为分隔点（如 "小美：你好 我：在吗"）
+ * 3. 名字+空格+内容模式
+ */
+function parseSingleLineFallback(text, contactName) {
+  text = stripInvisible(text).trim();
+  if (!text) return [];
+
+  if (contactName) contactName = stripInvisible(contactName).trim();
+
+  // 方案1: 用时间戳作为分割点
+  // 匹配模式：名字 + 日期时间 + 内容（内容到下一个名字+日期时间为止）
+  var DATETIME_PATTERN = new RegExp(
+    '(' + DATE_RE + '\\s+' + TIME_RE + '|' + TIME_RE + '|' + DATE_RE + ')',
+    'gi'
+  );
+
+  // 找出所有时间戳位置
+  var timeMatches = [];
+  var m;
+  while ((m = DATETIME_PATTERN.exec(text)) !== null) {
+    timeMatches.push({ index: m.index, text: m[0] });
+  }
+
+  if (timeMatches.length >= 2) {
+    // 有多个时间戳，按时间戳拆分
+    var segments = [];
+    for (var t = 0; t < timeMatches.length; t++) {
+      var segStart = timeMatches[t].index;
+      var segEnd = (t + 1 < timeMatches.length) ? timeMatches[t + 1].index : text.length;
+      var segText = text.substring(segStart, segEnd).trim();
+      if (segText) segments.push(segText);
+    }
+
+    if (segments.length >= 2) {
+      var messages1 = [];
+      for (var s = 0; s < segments.length; s++) {
+        var seg = segments[s];
+        // 每段开头是 时间戳，前面可能有名字
+        // 尝试提取名字（在时间戳之前的短文本）
+        var dtMatch = seg.match(new RegExp('^' + DATETIME_PATTERN.source, 'i'));
+        var namePart = '';
+        var contentPart = seg;
+
+        if (dtMatch) {
+          // 时间戳在开头
+          var afterTime = seg.substring(dtMatch[0].length).trim();
+          contentPart = afterTime;
+        } else {
+          // 可能有名字在时间戳前
+          var nameTimeMatch = seg.match(new RegExp('^(.+?)\\s+(' + DATETIME_RE + '|' + TIME_RE + ')', 'i'));
+          if (nameTimeMatch) {
+            namePart = nameTimeMatch[1].trim();
+            contentPart = seg.substring(nameTimeMatch[0].length).trim();
+          }
+        }
+
+        if (contentPart) {
+          // 如果contentPart里还有名字，尝试用名字分割
+          var role = namePart ? identifyRole(namePart, contactName) : (messages1.length > 0 && messages1[0].role === 'them' ? 'me' : 'them');
+          messages1.push({ role: role, content: contentPart });
+        }
+      }
+      if (messages1.length >= 2) return messages1;
+    }
+  }
+
+  // 方案2: 用"名字+冒号"作为分割点
+  // 模式: 小美：你好 我：在吗 -> ["小美：你好", "我：在吗"]
+  var colonNameRE = /([^\s:：]{1,10})[：:]\s*/g;
+  var colonMatches = [];
+  while ((m = colonNameRE.exec(text)) !== null) {
+    colonMatches.push({ index: m.index, name: m[1] });
+  }
+
+  if (colonMatches.length >= 2) {
+    var messages2 = [];
+    for (var c = 0; c < colonMatches.length; c++) {
+      var contentStart = colonMatches[c].index + colonMatches[c].name.length + 1;
+      // 跳过冒号和空格
+      while (contentStart < text.length && /[：:\s]/.test(text[contentStart])) contentStart++;
+      var contentEnd = (c + 1 < colonMatches.length) ? colonMatches[c + 1].index : text.length;
+      var content = text.substring(contentStart, contentEnd).trim();
+      if (content) {
+        messages2.push({
+          role: identifyRole(colonMatches[c].name, contactName),
+          content: content
+        });
+      }
+    }
+    if (messages2.length >= 2) return messages2;
+  }
+
+  // 方案3: 用已知名字（"我"、contactName等）作为分割点
+  if (contactName) {
+    var nameSplitRE = new RegExp(
+      '(?=(?:我|' + contactName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')\\s)',
+      'g'
+    );
+    var nameSplits = text.split(nameSplitRE).filter(function(s) { return s.trim(); });
+    if (nameSplits.length >= 2) {
+      var messages3 = [];
+      for (var ns = 0; ns < nameSplits.length; ns++) {
+        var nsSeg = nameSplits[ns].trim();
+        var nsMatch = nsSeg.match(/^(我|[^:：\s]{1,10})\s+(.+)/);
+        if (nsMatch) {
+          messages3.push({
+            role: identifyRole(nsMatch[1], contactName),
+            content: nsMatch[2].trim()
+          });
+        } else {
+          // 没有名字前缀，交替分配
+          messages3.push({
+            role: messages3.length % 2 === 0 ? 'them' : 'me',
+            content: nsSeg
+          });
+        }
+      }
+      if (messages3.length >= 2) return messages3;
+    }
+  }
+
+  // 方案4: 用"我"作为分割点（最简单的中文对话）
+  var woSplitRE = /(?=我\s)/g;
+  var woSplits = text.split(woSplitRE).filter(function(s) { return s.trim(); });
+  if (woSplits.length >= 2) {
+    var messages4 = [];
+    for (var w = 0; w < woSplits.length; w++) {
+      var wSeg = woSplits[w].trim();
+      if (wSeg.indexOf('我') === 0) {
+        // "我"开头的是我的消息
+        var wContent = wSeg.replace(/^我\s*/, '').trim();
+        if (wContent) messages4.push({ role: 'me', content: wContent });
+      } else {
+        // 其他的是对方的消息
+        if (wSeg) messages4.push({ role: 'them', content: wSeg });
+      }
+    }
+    if (messages4.length >= 2) return messages4;
+  }
+
+  // 所有方案都失败，返回单条
+  return [{ role: 'them', content: text }];
+}
