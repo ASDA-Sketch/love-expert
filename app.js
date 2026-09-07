@@ -300,114 +300,68 @@ function setupEventListeners() {
     // Batch paste
     $('importBatchBtn').addEventListener('click', importBatch);
 
-    // v22: 从剪贴板粘贴按钮
-    var clipBtn = $('clipboardPasteBtn');
-    if (clipBtn) {
-        clipBtn.addEventListener('click', function() {
-            var ta = $('batchText');
-            if (navigator.clipboard && navigator.clipboard.readText) {
-                navigator.clipboard.readText().then(function(text) {
-                    if (text) {
-                        ta.value = text;
-                        ta.focus();
-                        var len = ta.value.length;
-                        ta.setSelectionRange(len, len);
-                    } else {
-                        alert('剪贴板为空，请先在微信中复制聊天记录');
-                    }
-                }).catch(function() {
-                    alert('无法读取剪贴板。请用"上传txt文件"功能：\n1.在微信中复制聊天记录\n2.粘贴到手机备忘录\n3.保存为txt文件\n4.用"上传txt文件"按钮选择该文件');
-                });
-            } else {
-                alert('当前浏览器不支持剪贴板读取。请用"上传txt文件"功能。');
-            }
-        });
-    }
-
-    // v22: 文件上传功能
-    var fileBtn = $('fileUploadBtn');
+    // v23: 文件上传 - 首选方案，上传后自动解析并导入
     var fileInput = $('batchFileInput');
-    if (fileBtn && fileInput) {
-        fileBtn.addEventListener('click', function() {
-            fileInput.click();
-        });
+    if (fileInput) {
         fileInput.addEventListener('change', function(e) {
             var file = e.target.files[0];
             if (!file) return;
             var reader = new FileReader();
             reader.onload = function(ev) {
-                $('batchText').value = ev.target.result;
-                alert('文件已加载：' + file.name + '\n内容字符数：' + ev.target.result.length);
+                var text = ev.target.result;
+                $('batchText').value = text;
+                // 自动触发解析导入
+                if (text && text.trim()) {
+                    importBatch();
+                }
             };
             reader.onerror = function() {
-                alert('读取文件失败');
+                alert('读取文件失败，请重试');
             };
             reader.readAsText(file, 'UTF-8');
-            e.target.value = ''; // 允许重复选择同一文件
+            e.target.value = '';
         });
     }
 
-    // v22: 调试按钮 - 显示 textarea 中的原始内容分析
+    // v23: 调试按钮
     var debugBtn = $('debugBatchBtn');
     if (debugBtn) {
         debugBtn.addEventListener('click', function() {
             var ta = $('batchText');
             var val = ta.value;
             var nlCount = (val.match(/\n/g) || []).length;
-            var crlfCount = (val.match(/\r\n/g) || []).length;
-            var crCount = (val.match(/\r/g) || []).length;
-            var unicodeSepCount = (val.match(/[\u2028\u2029]/g) || []).length;
             var info = '=== 调试信息 ===\n';
             info += '总字符数: ' + val.length + '\n';
-            info += '\\n 换行数: ' + nlCount + '\n';
-            info += '\\r\\n 换行数: ' + crlfCount + '\n';
-            info += '\\r 换行数: ' + crCount + '\n';
-            info += 'Unicode分隔符: ' + unicodeSepCount + '\n';
+            info += '换行数: ' + nlCount + '\n';
             info += '前200字符:\n' + val.substring(0, 200);
             if (val.length > 200) info += '\n...(共' + val.length + '字符)';
             alert(info);
         });
     }
 
-    // v22: paste 事件处理 - 始终拦截，确保完整多行内容被插入
+    // v23: paste 事件处理 - 始终拦截，多方式获取完整内容
     var batchTa = $('batchText');
     if (batchTa) {
         batchTa.addEventListener('paste', function(e) {
-            // 始终阻止默认粘贴行为，手动插入完整内容
             e.preventDefault();
-
             var pastedText = '';
-
-            // 尝试多种方式获取剪贴板内容
             var cd = e.clipboardData || window.clipboardData;
             if (cd) {
                 try { pastedText = cd.getData('text/plain') || ''; } catch(ex) {}
-                if (!pastedText) {
-                    try { pastedText = cd.getData('text') || ''; } catch(ex) {}
-                }
+                if (!pastedText) { try { pastedText = cd.getData('text') || ''; } catch(ex) {} }
             }
-
-            // 如果 clipboardData 不可用或为空，尝试从 DataTransfer items 获取
             if (!pastedText && cd && cd.items) {
                 for (var idx = 0; idx < cd.items.length; idx++) {
                     if (cd.items[idx].type === 'text/plain') {
-                        cd.items[idx].getAsString(function(str) {
-                            insertText(str);
-                        });
+                        cd.items[idx].getAsString(function(str) { insertBatchText(str); });
                         return;
                     }
                 }
             }
-
-            if (pastedText) {
-                insertText(pastedText);
-            }
-            // 如果所有方式都失败，不阻止默认行为（让浏览器原生处理）
-            // 但由于已经 preventDefault 了，需要恢复——实际上无法恢复
-            // 所以这里用 input 事件兜底检测
+            if (pastedText) { insertBatchText(pastedText); }
         });
 
-        function insertText(text) {
+        function insertBatchText(text) {
             if (!text) return;
             var start = batchTa.selectionStart;
             var end = batchTa.selectionEnd;
@@ -417,15 +371,6 @@ function setupEventListeners() {
             var cursorPos = start + text.length;
             batchTa.setSelectionRange(cursorPos, cursorPos);
         }
-
-        // v22: input 事件兜底 - 如果 paste 事件未能获取完整内容，
-        // 检测 textarea 值的变化并保留所有内容
-        var lastValue = '';
-        batchTa.addEventListener('input', function(e) {
-            // 如果值变短了（被浏览器截断），尝试恢复
-            // 但这里我们不做自动恢复，因为无法知道原始内容
-            // 这个事件主要用于调试
-        });
     }
 
     // Settings
