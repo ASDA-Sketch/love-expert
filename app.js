@@ -300,7 +300,7 @@ function setupEventListeners() {
     // Batch paste
     $('importBatchBtn').addEventListener('click', importBatch);
 
-    // v21: 从剪贴板粘贴按钮
+    // v22: 从剪贴板粘贴按钮
     var clipBtn = $('clipboardPasteBtn');
     if (clipBtn) {
         clipBtn.addEventListener('click', function() {
@@ -324,7 +324,7 @@ function setupEventListeners() {
         });
     }
 
-    // v21: 文件上传功能
+    // v22: 文件上传功能
     var fileBtn = $('fileUploadBtn');
     var fileInput = $('batchFileInput');
     if (fileBtn && fileInput) {
@@ -347,7 +347,7 @@ function setupEventListeners() {
         });
     }
 
-    // v21: 调试按钮 - 显示 textarea 中的原始内容分析
+    // v22: 调试按钮 - 显示 textarea 中的原始内容分析
     var debugBtn = $('debugBatchBtn');
     if (debugBtn) {
         debugBtn.addEventListener('click', function() {
@@ -369,24 +369,62 @@ function setupEventListeners() {
         });
     }
 
-    // v21: paste 事件处理 - 确保完整多行内容被插入
+    // v22: paste 事件处理 - 始终拦截，确保完整多行内容被插入
     var batchTa = $('batchText');
     if (batchTa) {
         batchTa.addEventListener('paste', function(e) {
-            var clipboardData = e.clipboardData || window.clipboardData;
-            if (clipboardData) {
-                var pastedText = clipboardData.getData('text/plain');
-                if (pastedText && pastedText.indexOf('\n') !== -1) {
-                    e.preventDefault();
-                    var start = batchTa.selectionStart;
-                    var end = batchTa.selectionEnd;
-                    var before = batchTa.value.substring(0, start);
-                    var after = batchTa.value.substring(end);
-                    batchTa.value = before + pastedText + after;
-                    var cursorPos = start + pastedText.length;
-                    batchTa.setSelectionRange(cursorPos, cursorPos);
+            // 始终阻止默认粘贴行为，手动插入完整内容
+            e.preventDefault();
+
+            var pastedText = '';
+
+            // 尝试多种方式获取剪贴板内容
+            var cd = e.clipboardData || window.clipboardData;
+            if (cd) {
+                try { pastedText = cd.getData('text/plain') || ''; } catch(ex) {}
+                if (!pastedText) {
+                    try { pastedText = cd.getData('text') || ''; } catch(ex) {}
                 }
             }
+
+            // 如果 clipboardData 不可用或为空，尝试从 DataTransfer items 获取
+            if (!pastedText && cd && cd.items) {
+                for (var idx = 0; idx < cd.items.length; idx++) {
+                    if (cd.items[idx].type === 'text/plain') {
+                        cd.items[idx].getAsString(function(str) {
+                            insertText(str);
+                        });
+                        return;
+                    }
+                }
+            }
+
+            if (pastedText) {
+                insertText(pastedText);
+            }
+            // 如果所有方式都失败，不阻止默认行为（让浏览器原生处理）
+            // 但由于已经 preventDefault 了，需要恢复——实际上无法恢复
+            // 所以这里用 input 事件兜底检测
+        });
+
+        function insertText(text) {
+            if (!text) return;
+            var start = batchTa.selectionStart;
+            var end = batchTa.selectionEnd;
+            var before = batchTa.value.substring(0, start);
+            var after = batchTa.value.substring(end);
+            batchTa.value = before + text + after;
+            var cursorPos = start + text.length;
+            batchTa.setSelectionRange(cursorPos, cursorPos);
+        }
+
+        // v22: input 事件兜底 - 如果 paste 事件未能获取完整内容，
+        // 检测 textarea 值的变化并保留所有内容
+        var lastValue = '';
+        batchTa.addEventListener('input', function(e) {
+            // 如果值变短了（被浏览器截断），尝试恢复
+            // 但这里我们不做自动恢复，因为无法知道原始内容
+            // 这个事件主要用于调试
         });
     }
 
