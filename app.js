@@ -164,7 +164,7 @@ function startApp() {
     });
 
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js').then(function(reg) {
+        navigator.serviceWorker.register('sw.js?v=18').then(function(reg) {
             if (reg.waiting) {
                 reg.waiting.postMessage('skipWaiting');
             }
@@ -181,9 +181,7 @@ function startApp() {
         }).catch(function(err) {
             console.log('Service Worker registration failed:', err);
         });
-        navigator.serviceWorker.addEventListener('controllerchange', function() {
-            window.location.reload();
-        });
+        // v18: 不监听 controllerchange，不自动 reload（防止无限刷新循环）
     }
 }
 
