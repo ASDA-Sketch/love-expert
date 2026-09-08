@@ -558,6 +558,32 @@ button {
 }
 .tool-btn:hover { border-color: var(--primary); color: var(--primary); }
 
+/* Primary tool button (生成回复) - stands out */
+.tool-btn.primary-tool {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+    font-weight: 600;
+}
+.tool-btn.primary-tool:hover {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+    color: #fff;
+}
+.tool-btn.primary-tool:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Copy action button on message bubbles */
+.msg-action.copy-action {
+    color: var(--text-secondary);
+}
+.msg-action.copy-action:hover {
+    background: var(--primary);
+    color: #fff;
+}
+
 .danger-text { color: var(--danger); }
 
 /* ===== Analysis Panel ===== */
