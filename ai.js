@@ -31,6 +31,13 @@ function getAIConfig() {
  * @returns {boolean}
  */
 function isDemoMode() {
+  // v26: 如果 auth 模块确认已激活，直接返回 false（不走 demo）
+  // 这修复了移动端 PWA 显示"已连接"但返回固定短语的问题
+  if (window.auth && window.auth.isActivated && window.auth.isActivated()) {
+    console.log('[AI] Live mode: auth module confirms activated');
+    return false;
+  }
+
   var cfg = getAIConfig();
   var key = (cfg.api_key || '').trim();
   if (!key) {
@@ -226,7 +233,8 @@ async function analyzeConversation(message, isConversation, contactId) {
 
 /**
  * 引用回复生成
- * @param {string} quotedMessage - 用户引用的对方那句话/那段话
+ * v26: 增加全量聊天记录上下文，AI 综合整个对话生成回复
+ * @param {string} quotedMessage - 对方最新说的那句话（自动获取，非手动选）
  * @param {string} style - 回复风格/意图
  * @param {string} customIntent - 当 style="guide_topic" 时，用户指定的目标话题（可选）
  * @param {number} contactId - 联系人ID（可选，传入则带历史上下文）
@@ -241,10 +249,10 @@ async function generateReplies(quotedMessage, style, customIntent, contactId) {
 
   console.log('[AI] generateReplies: calling real AI with style=' + style + ' message="' + (quotedMessage||'').substring(0,30) + '"');
 
-  // 如果有 contactId，从数据库获取上下文
+  // v26: 获取更完整的上下文（50条消息）+ 完整联系人信息
   var context = '';
   if (contactId) {
-    context = await window.db.buildContextSummary(contactId, 30);
+    context = await window.db.buildContextSummary(contactId, 50);
   }
 
   try {
@@ -271,8 +279,9 @@ async function generateReplies(quotedMessage, style, customIntent, contactId) {
 
 /**
  * 关系推进提醒
+ * v26: 增强版——自动判断聊天阶段、主动分析窗口、结合联系人背景
  * @param {number} contactId - 联系人ID
- * @returns {Promise<object>} {reminder, reason}
+ * @returns {Promise<object>} {reminder, reason, stage}
  */
 async function getProgressReminder(contactId) {
   // 演示模式：返回预设样例
@@ -282,10 +291,12 @@ async function getProgressReminder(contactId) {
 
   var context = '';
   var daysSinceLastMessage = 0;
+  var messageCount = 0;
   if (contactId) {
-    context = await window.db.buildContextSummary(contactId, 30);
-    // 计算距离上次最后一条消息的天数
+    // v26: 获取更多上下文（50条），包含完整联系人资料
+    context = await window.db.buildContextSummary(contactId, 50);
     var messages = await window.db.getMessages(contactId);
+    messageCount = messages ? messages.length : 0;
     if (messages && messages.length > 0) {
       var lastMsg = messages[messages.length - 1];
       try {
@@ -301,7 +312,7 @@ async function getProgressReminder(contactId) {
   try {
     var content = await callAI(
       window.PROGRESS_REMINDER_SYSTEM_PROMPT,
-      window.buildProgressReminderPrompt(context, daysSinceLastMessage)
+      window.buildProgressReminderPrompt(context, daysSinceLastMessage, messageCount)
     );
     var result = extractJSON(content);
     if (result && typeof result === 'object' && !Array.isArray(result)) {
