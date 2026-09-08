@@ -72,6 +72,43 @@ async function applyActivation(code) {
     return true;
 }
 
+// ============================================================
+// v30: 老版本升级自愈
+// 旧版（v28 代理版）激活时只存了激活码、没存 Key；升级到直连版后，
+// 在脚本加载阶段按激活码自动补写对应的 DeepSeek Key，老用户无需重新激活。
+// ============================================================
+(function migrateLegacyActivation() {
+    try {
+        var code = getStoredCode();
+        if (!code) return;
+
+        var key = ACTIVATION_MAP[code];
+        if (!key) {
+            // 激活码无法识别（理论不该发生）：清除，让用户重新激活
+            localStorage.removeItem(AUTH_STORAGE_KEY);
+            return;
+        }
+
+        var existing = {};
+        try { existing = JSON.parse(localStorage.getItem('aiConfig') || '{}'); } catch (e) { existing = {}; }
+
+        // 本地缺少 Key 或 Key 与激活码不匹配时，补写
+        if (existing.apiKey !== key) {
+            localStorage.setItem('aiConfig', JSON.stringify({
+                apiKey: key,
+                baseUrl: DEFAULT_BASE_URL,
+                model: DEFAULT_MODEL
+            }));
+            localStorage.setItem('api_key', key);
+            localStorage.setItem('base_url', DEFAULT_BASE_URL);
+            localStorage.setItem('model', DEFAULT_MODEL);
+            console.log('[Auth] v30: 已为激活码 ' + code + ' 补写本地 Key');
+        }
+    } catch (e) {
+        console.warn('[Auth] migrate error:', e);
+    }
+})();
+
 // 导出到 window 全局（保留 API_PROXY_URL 字段以兼容 app.js / ai.js 引用，此版本不再使用代理）
 window.auth = {
     getStoredCode: getStoredCode,
