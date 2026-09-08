@@ -28,7 +28,7 @@ function getAIConfig() {
 
 /**
  * 判断是否处于演示模式
- * v27: 如果已激活（激活码在 localStorage），走 Vercel 代理，不是 demo
+ * v29: 如果已激活（激活码对应的 Key 已写入本地配置），浏览器直连 DeepSeek，不是 demo
  * 如果有自定义 API Key，走直连，不是 demo
  * 否则是 demo 模式
  * @returns {boolean}
@@ -118,8 +118,7 @@ function extractJSON(text) {
 
 /**
  * 调用 AI
- * v27: 如果已激活，走 Vercel 代理（不暴露 API Key）
- * 如果有自定义 API Key，走直连
+ * v29: 纯前端统一走浏览器直连 DeepSeek（激活码对应的 Key 已由 auth.js 写入本地配置）
  * @param {string} systemPrompt - 系统提示词
  * @param {string} userPrompt - 用户提示词
  * @returns {Promise<string>} AI 返回的文本内容
