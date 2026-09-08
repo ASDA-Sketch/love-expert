@@ -27,21 +27,24 @@ function getAIConfig() {
 }
 
 /**
- * 判断是否处于演示模式（无有效 API Key）
+ * 判断是否处于演示模式
+ * v27: 如果已激活（激活码在 localStorage），走 Vercel 代理，不是 demo
+ * 如果有自定义 API Key，走直连，不是 demo
+ * 否则是 demo 模式
  * @returns {boolean}
  */
 function isDemoMode() {
-  // v26: 如果 auth 模块确认已激活，直接返回 false（不走 demo）
-  // 这修复了移动端 PWA 显示"已连接"但返回固定短语的问题
+  // v27: 激活码模式 → 走 Vercel 代理
   if (window.auth && window.auth.isActivated && window.auth.isActivated()) {
-    console.log('[AI] Live mode: auth module confirms activated');
+    console.log('[AI] Live mode (Vercel proxy): activated');
     return false;
   }
 
+  // 自定义 API Key 模式 → 直连
   var cfg = getAIConfig();
   var key = (cfg.api_key || '').trim();
   if (!key) {
-    console.log('[AI] Demo mode: no API key found in config');
+    console.log('[AI] Demo mode: no API key and no activation code');
     return true;
   }
   var placeholders = ['sk-your-api-key-here', 'sk-xxx', 'your-api-key', 'placeholder'];
@@ -49,7 +52,7 @@ function isDemoMode() {
     console.log('[AI] Demo mode: placeholder key detected');
     return true;
   }
-  console.log('[AI] Live mode: API key found (' + key.substring(0, 6) + '...' + key.substring(key.length - 4) + ')');
+  console.log('[AI] Live mode (direct): API key found');
   return false;
 }
 
@@ -114,12 +117,44 @@ function extractJSON(text) {
 // ============================================================
 
 /**
- * 直接 fetch 调用 DeepSeek API
+ * 调用 AI
+ * v27: 如果已激活，走 Vercel 代理（不暴露 API Key）
+ * 如果有自定义 API Key，走直连
  * @param {string} systemPrompt - 系统提示词
  * @param {string} userPrompt - 用户提示词
  * @returns {Promise<string>} AI 返回的文本内容
  */
 async function callAI(systemPrompt, userPrompt) {
+  // v27: 激活码模式 → 走 Vercel 代理
+  if (window.auth && window.auth.isActivated && window.auth.isActivated()) {
+    var code = window.auth.getStoredCode();
+    var proxyUrl = window.auth.API_PROXY_URL + '/api/chat';
+
+    console.log('[AI] callAI via Vercel proxy');
+    var proxyResponse = await fetch(proxyUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: code,
+        systemPrompt: systemPrompt,
+        userPrompt: userPrompt
+      })
+    });
+
+    var proxyData = await proxyResponse.json();
+
+    if (proxyData.error) {
+      throw new Error(proxyData.error);
+    }
+
+    if (!proxyData.content) {
+      throw new Error('AI 返回内容为空');
+    }
+
+    return proxyData.content;
+  }
+
+  // 直连模式（用户自己的 API Key）
   var cfg = getAIConfig();
   var url = cfg.base_url.replace(/\/+$/, '') + '/chat/completions';
   var response = await fetch(url, {
@@ -337,6 +372,27 @@ async function getProgressReminder(contactId) {
  * @returns {Promise<string>} 成功信息
  */
 async function testConnection(config) {
+  // v27: 激活码模式 → 通过 Vercel 代理测试
+  if (window.auth && window.auth.isActivated && window.auth.isActivated()) {
+    var code = window.auth.getStoredCode();
+    var proxyUrl = window.auth.API_PROXY_URL + '/api/test';
+
+    var proxyResponse = await fetch(proxyUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code })
+    });
+
+    var proxyData = await proxyResponse.json();
+
+    if (proxyData.success) {
+      return '连接成功！模型：' + (proxyData.model || 'deepseek-chat') + '（通过激活码连接）';
+    }
+
+    throw new Error(proxyData.error || '连接失败');
+  }
+
+  // 直连模式测试
   var cfg = config || getAIConfig();
   if (!cfg || !cfg.api_key || !cfg.api_key.trim()) {
     throw new Error('请先填写 API Key');
@@ -361,17 +417,16 @@ async function testConnection(config) {
     throw new Error('API Key 无效（401），请检查 Key 是否正确');
   }
   if (response.status === 405) {
-    throw new Error('HTTP 405：请检查 Base URL 是否正确（应为 https://api.deepseek.com/v1，不要带 /chat/completions）');
+    throw new Error('HTTP 405：请检查 Base URL 是否正确');
   }
   if (response.status === 404) {
-    throw new Error('HTTP 404：地址不存在，请检查 Base URL（应为 https://api.deepseek.com/v1）');
+    throw new Error('HTTP 404：地址不存在，请检查 Base URL');
   }
   if (!response.ok) {
     var errText = await response.text();
     throw new Error('HTTP ' + response.status + ': ' + errText.substring(0, 200));
   }
 
-  // 200 OK — try to read model name, don't fail if body is unreadable
   try {
     var data = await response.json();
     return '连接成功！模型：' + (data.model || cfg.model);
