@@ -12,16 +12,16 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <link rel="manifest" href="manifest.json?v=29">
+    <link rel="manifest" href="manifest.json?v=30">
     <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="icon" href="icon-192.png">
-    <link rel="stylesheet" href="style.css?v=29">
+    <link rel="stylesheet" href="style.css?v=30">
     <title>恋爱聊天助手</title>
     <script>
-    // v29: 纯前端离线激活，浏览器直连 DeepSeek（无需后端）
+    // v30: 纯前端离线激活，浏览器直连 DeepSeek（无需后端）；老版本自动补 Key
     (function() {
         var VERSION_KEY = 'love_expert_sw_version';
-        var NEW_VERSION = 'v29';
+        var NEW_VERSION = 'v30';
         var currentVersion = localStorage.getItem(VERSION_KEY);
 
         // 每次版本升级时清理旧 SW 和缓存
@@ -40,10 +40,10 @@
             });
         }
 
-        // 注册 no-op SW (v29) - 不监听 controllerchange，不自动 reload
+        // 注册 no-op SW (v30) - 不监听 controllerchange，不自动 reload
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
-                navigator.serviceWorker.register('sw.js?v=29').catch(function(e) {
+                navigator.serviceWorker.register('sw.js?v=30').catch(function(e) {
                     console.warn('SW registration failed:', e);
                 });
             });
@@ -299,12 +299,12 @@
     </div>
 
     <!-- Scripts (loaded in order) -->
-    <script src="db.js?v=29"></script>
-    <script src="prompts.js?v=29"></script>
-    <script src="demo_data.js?v=29"></script>
-    <script src="ai.js?v=29"></script>
-    <script src="auth.js?v=29"></script>
-    <script src="import.js?v=29"></script>
-    <script src="app.js?v=29"></script>
+    <script src="db.js?v=30"></script>
+    <script src="prompts.js?v=30"></script>
+    <script src="demo_data.js?v=30"></script>
+    <script src="ai.js?v=30"></script>
+    <script src="auth.js?v=30"></script>
+    <script src="import.js?v=30"></script>
+    <script src="app.js?v=30"></script>
 </body>
 </html>
