@@ -12,16 +12,16 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <link rel="manifest" href="manifest.json?v=27">
+    <link rel="manifest" href="manifest.json?v=28">
     <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="icon" href="icon-192.png">
-    <link rel="stylesheet" href="style.css?v=27">
+    <link rel="stylesheet" href="style.css?v=28">
     <title>恋爱聊天助手</title>
     <script>
-    // v27: 激活码迁移到 Vercel 后端代理，前端不暴露 API Key
+    // v28: 连接 Vercel 后端，激活码验证上线
     (function() {
         var VERSION_KEY = 'love_expert_sw_version';
-        var NEW_VERSION = 'v27';
+        var NEW_VERSION = 'v28';
         var currentVersion = localStorage.getItem(VERSION_KEY);
 
         // 每次版本升级时清理旧 SW 和缓存
@@ -299,12 +299,12 @@
     </div>
 
     <!-- Scripts (loaded in order) -->
-    <script src="db.js?v=27"></script>
-    <script src="prompts.js?v=27"></script>
-    <script src="demo_data.js?v=27"></script>
-    <script src="ai.js?v=27"></script>
-    <script src="auth.js?v=27"></script>
-    <script src="import.js?v=27"></script>
-    <script src="app.js?v=27"></script>
+    <script src="db.js?v=28"></script>
+    <script src="prompts.js?v=28"></script>
+    <script src="demo_data.js?v=28"></script>
+    <script src="ai.js?v=28"></script>
+    <script src="auth.js?v=28"></script>
+    <script src="import.js?v=28"></script>
+    <script src="app.js?v=28"></script>
 </body>
 </html>
