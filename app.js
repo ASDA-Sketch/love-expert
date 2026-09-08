@@ -59,13 +59,23 @@ function copyText(text, btn) {
             setTimeout(function() { btn.textContent = original; }, 1500);
         }
     };
+
+    // iOS Safari: execCommand must run synchronously in user-gesture context.
+    // navigator.clipboard.writeText returns a Promise; its .then/.catch callbacks
+    // run in microtask, breaking the user-gesture chain on iOS.
+    // So try fallbackCopy FIRST (synchronous), then clipboard API as enhancement.
+    var success = fallbackCopy(text);
+    if (success) {
+        done();
+        return;
+    }
+
+    // execCommand failed — try clipboard API (might work on desktop)
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(done).catch(function() {
-            fallbackCopy(text);
             done();
         });
     } else {
-        fallbackCopy(text);
         done();
     }
 }
@@ -73,12 +83,35 @@ function copyText(text, btn) {
 function fallbackCopy(text) {
     var ta = document.createElement('textarea');
     ta.value = text;
+    // iOS: readonly prevents keyboard from popping up
+    ta.setAttribute('readonly', '');
     ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    ta.style.top = '0';
+    ta.style.width = '1px';
+    ta.style.height = '1px';
     ta.style.opacity = '0';
     document.body.appendChild(ta);
-    ta.select();
-    try { document.execCommand('copy'); } catch (e) {}
+
+    // iOS Safari needs Selection API, not just select()
+    if (navigator.userAgent.match(/ipad|ipod|iphone/i)) {
+        ta.contentEditable = 'true';
+        ta.readOnly = false;
+        var range = document.createRange();
+        range.selectNodeContents(ta);
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        ta.setSelectionRange(0, text.length);
+    } else {
+        ta.focus();
+        ta.select();
+    }
+
+    var success = false;
+    try { success = document.execCommand('copy'); } catch (e) {}
     document.body.removeChild(ta);
+    return success;
 }
 
 function showToast(msg) {
@@ -265,6 +298,7 @@ function setupEventListeners() {
     });
 
     // Chat toolbar
+    $('smartReplyBtn').addEventListener('click', openSmartReply);
     $('analyzeBtn').addEventListener('click', analyzeConversation);
     $('topicsBtn').addEventListener('click', recommendTopics);
     $('batchPasteBtn').addEventListener('click', batchPaste);
@@ -455,6 +489,9 @@ function loadContacts() {
 
 function selectContact(id) {
     currentContactId = id;
+    // v26: 切换联系人时关闭回复面板，避免跨联系人信息串
+    var replyModal = $('replyModal');
+    if (replyModal) replyModal.classList.add('hidden');
     loadContacts();
     loadMessages(id);
     loadProgressReminder(id);
@@ -623,16 +660,18 @@ function renderMessage(msg) {
     bubble.dataset.msgId = msg.id;
 
     var html = '<div class="message-text">' + escapeHtml(msg.content) + '</div>';
-    html += '<div class="message-time">' + formatTime(msg.timestamp) + '</div>';
+    html += '<div class="message-time">' + formatTime(msg.created_at || msg.timestamp) + '</div>';
 
     if (msg.role === 'them') {
         html += '<div class="message-actions">';
         html += '<button class="msg-action reply-action" title="智能回复">💬 回复</button>';
+        html += '<button class="msg-action copy-action" title="复制">📋 复制</button>';
         html += '<button class="msg-action edit-action" title="编辑">✏️ 编辑</button>';
         html += '<button class="msg-action delete-action" title="删除">🗑️ 删除</button>';
         html += '</div>';
     } else {
         html += '<div class="message-actions">';
+        html += '<button class="msg-action copy-action" title="复制">📋 复制</button>';
         html += '<button class="msg-action edit-action" title="编辑">✏️ 编辑</button>';
         html += '<button class="msg-action delete-action" title="删除">🗑️ 删除</button>';
         html += '</div>';
@@ -647,6 +686,15 @@ function renderMessage(msg) {
                 openReplyPanel(msg.content);
             });
         }
+    }
+
+    // Copy button (explicit, within user-gesture context — works on iOS)
+    var copyBtn = bubble.querySelector('.copy-action');
+    if (copyBtn) {
+        copyBtn.addEventListener('click', function() {
+            copyText(msg.content, copyBtn);
+            showToast('已复制');
+        });
     }
     var editBtn = bubble.querySelector('.edit-action');
     if (editBtn) {
@@ -704,6 +752,8 @@ function sendMessage(role) {
         input.value = '';
         loadMessages(currentContactId);
         loadContacts();
+        // v26: 发送消息后自动刷新进度提醒
+        loadProgressReminder(currentContactId);
     }).catch(function(err) {
         alert('发送失败: ' + (err.message || ''));
     });
@@ -1059,6 +1109,60 @@ function refreshTopics() {
 
 /* ===== Quote Reply ===== */
 
+/**
+ * 智能生成回复：自动读取整个聊天记录，找到对方最新消息，综合上下文生成回复
+ * 不需要用户手动点选某句话
+ */
+function openSmartReply() {
+    if (!currentContactId) {
+        alert('请先选择联系人');
+        return;
+    }
+
+    if (!window.db.getMessages) {
+        alert('数据库未初始化');
+        return;
+    }
+
+    // 显示 loading 状态
+    var btn = $('smartReplyBtn');
+    var originalText = btn.textContent;
+    btn.textContent = '⏳ 分析中...';
+    btn.disabled = true;
+
+    window.db.getMessages(currentContactId).then(function(messages) {
+        btn.textContent = originalText;
+        btn.disabled = false;
+
+        if (!messages || messages.length === 0) {
+            alert('暂无对话记录，请先添加对话');
+            return;
+        }
+
+        // 找到对方最后说的一句话
+        var lastThemMessage = '';
+        for (var i = messages.length - 1; i >= 0; i--) {
+            if (messages[i].role === 'them') {
+                lastThemMessage = messages[i].content;
+                break;
+            }
+        }
+
+        if (!lastThemMessage) {
+            // 如果没有对方消息，提示用户先输入对方说的话
+            alert('暂无对方消息，请先输入对方说的内容（点击"对方说"按钮）');
+            return;
+        }
+
+        // 打开回复面板，传入对方最新消息
+        openReplyPanel(lastThemMessage);
+    }).catch(function(err) {
+        btn.textContent = originalText;
+        btn.disabled = false;
+        alert('读取对话失败: ' + (err.message || ''));
+    });
+}
+
 function openReplyPanel(quotedMessage) {
     if (!currentContactId) {
         alert('请先选择联系人');
@@ -1098,11 +1202,11 @@ function generateReplies() {
         return;
     }
 
-    // Use captured contactId to prevent cross-contact note mixing
-    var contactId = replyState.contactId || currentContactId;
+    // v26: 始终使用 currentContactId，避免切换联系人后 replyState 缓存旧 contactId 导致信息串
+    var contactId = currentContactId || replyState.contactId;
     replyState.customIntent = $('customIntent').value.trim();
 
-    console.log('[generateReplies] contactId=' + contactId + ' style=' + style + ' currentContactId=' + currentContactId);
+    console.log('[generateReplies] contactId=' + contactId + ' style=' + style + ' currentContactId=' + currentContactId + ' demoMode=' + (window.ai.isDemoMode ? window.ai.isDemoMode() : 'unknown'));
 
     window.ai.generateReplies(
         replyState.quotedMessage,
@@ -1196,7 +1300,12 @@ function loadProgressReminder(contactId) {
 
     window.ai.getProgressReminder(contactId).then(function(reminder) {
         if (reminder && reminder.reminder) {
-            $('progressText').textContent = reminder.reminder;
+            // v26: 如果有 stage 信息，在提醒前显示阶段标签
+            var stageText = '';
+            if (reminder.stage) {
+                stageText = '【' + reminder.stage + '】';
+            }
+            $('progressText').textContent = stageText + reminder.reminder;
             card.classList.remove('hidden');
         } else {
             card.classList.add('hidden');
