@@ -34,9 +34,9 @@ function getAIConfig() {
  * @returns {boolean}
  */
 function isDemoMode() {
-  // v27: 激活码模式 → 走 Vercel 代理
+  // 已激活（激活码对应的 Key 已写入本地配置）→ 浏览器直连，非 demo
   if (window.auth && window.auth.isActivated && window.auth.isActivated()) {
-    console.log('[AI] Live mode (Vercel proxy): activated');
+    console.log('[AI] Live mode (direct): activated');
     return false;
   }
 
@@ -125,36 +125,7 @@ function extractJSON(text) {
  * @returns {Promise<string>} AI 返回的文本内容
  */
 async function callAI(systemPrompt, userPrompt) {
-  // v27: 激活码模式 → 走 Vercel 代理
-  if (window.auth && window.auth.isActivated && window.auth.isActivated()) {
-    var code = window.auth.getStoredCode();
-    var proxyUrl = window.auth.API_PROXY_URL + '/api/chat';
-
-    console.log('[AI] callAI via Vercel proxy');
-    var proxyResponse = await fetch(proxyUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        code: code,
-        systemPrompt: systemPrompt,
-        userPrompt: userPrompt
-      })
-    });
-
-    var proxyData = await proxyResponse.json();
-
-    if (proxyData.error) {
-      throw new Error(proxyData.error);
-    }
-
-    if (!proxyData.content) {
-      throw new Error('AI 返回内容为空');
-    }
-
-    return proxyData.content;
-  }
-
-  // 直连模式（用户自己的 API Key）
+  // 纯前端版：统一走浏览器直连 DeepSeek（激活码对应的 Key 已由 auth.js 写入本地配置）
   var cfg = getAIConfig();
   var url = cfg.base_url.replace(/\/+$/, '') + '/chat/completions';
   var response = await fetch(url, {
@@ -372,27 +343,7 @@ async function getProgressReminder(contactId) {
  * @returns {Promise<string>} 成功信息
  */
 async function testConnection(config) {
-  // v27: 激活码模式 → 通过 Vercel 代理测试
-  if (window.auth && window.auth.isActivated && window.auth.isActivated()) {
-    var code = window.auth.getStoredCode();
-    var proxyUrl = window.auth.API_PROXY_URL + '/api/test';
-
-    var proxyResponse = await fetch(proxyUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: code })
-    });
-
-    var proxyData = await proxyResponse.json();
-
-    if (proxyData.success) {
-      return '连接成功！模型：' + (proxyData.model || 'deepseek-chat') + '（通过激活码连接）';
-    }
-
-    throw new Error(proxyData.error || '连接失败');
-  }
-
-  // 直连模式测试
+  // 纯前端版：统一走浏览器直连 DeepSeek 测试（激活码对应的 Key 已在本地配置中）
   var cfg = config || getAIConfig();
   if (!cfg || !cfg.api_key || !cfg.api_key.trim()) {
     throw new Error('请先填写 API Key');
