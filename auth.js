@@ -5,7 +5,7 @@
  */
 
 // Vercel API 代理地址（部署后替换为实际地址）
-var API_PROXY_URL = 'https://love-expert-api.vercel.app';
+var API_PROXY_URL = 'https://ai-ddadsa.vercel.app';
 
 var AUTH_STORAGE_KEY = 'act_code';
 
