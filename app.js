@@ -178,8 +178,7 @@ function startApp() {
     var overlay = $('activationOverlay');
     if (overlay) overlay.classList.add('hidden');
 
-    // 确保激活的 config 已同步
-    if (window.auth) window.auth.isActivated();
+    // v27: 不再从 auth 同步 aiConfig（激活码模式不存 API Key）
 
     initDB().then(function() {
         return loadDemoDataIfNeeded();
@@ -212,14 +211,27 @@ function setupActivation() {
             errorDiv.textContent = '请输入激活码';
             return;
         }
-        if (window.auth && window.auth.applyActivation(code)) {
-            errorDiv.textContent = '';
-            startApp();
-        } else {
-            errorDiv.textContent = '激活码无效';
+
+        // v27: 激活码验证现在是异步的（通过 Vercel 代理）
+        errorDiv.textContent = '验证中...';
+        btn.disabled = true;
+
+        window.auth.applyActivation(code).then(function(success) {
+            btn.disabled = false;
+            if (success) {
+                errorDiv.textContent = '';
+                startApp();
+            } else {
+                errorDiv.textContent = '激活码无效';
+                input.value = '';
+                input.focus();
+            }
+        }).catch(function(err) {
+            btn.disabled = false;
+            errorDiv.textContent = err.message || '验证失败，请稍后重试';
             input.value = '';
             input.focus();
-        }
+        });
     }
 
     btn.addEventListener('click', tryActivate);
@@ -1367,9 +1379,10 @@ function saveConfig() {
 }
 
 function updateModeBadge() {
-    var config = getConfig();
     var badge = $('modeBadge');
-    if ((window.auth && window.auth.isActivated()) || config.apiKey) {
+    if (!badge) return;
+    // v27: 通过 isDemoMode 统一判断（激活码模式或自定义 Key 模式都是 Live）
+    if (window.ai && window.ai.isDemoMode && !window.ai.isDemoMode()) {
         badge.textContent = 'Live';
         badge.classList.add('live');
     } else {
@@ -1381,28 +1394,50 @@ function updateModeBadge() {
 function updateModelStatus() {
     var status = $('modelStatus');
     if (!status) return;
-    if (window.auth && window.auth.isActivated()) {
-        status.textContent = '✅ 已激活';
+    // v27: 通过 isDemoMode 统一判断
+    if (window.ai && window.ai.isDemoMode && !window.ai.isDemoMode()) {
+        if (window.auth && window.auth.isActivated()) {
+            status.textContent = '✅ 已激活';
+        } else {
+            status.textContent = '✅ 已连接';
+        }
         status.className = 'model-status model-status-connected';
     } else {
-        var config = getConfig();
-        if (config.apiKey && config.model) {
-            status.textContent = '✅ 已连接：' + config.model;
-            status.className = 'model-status model-status-connected';
-        } else {
-            status.textContent = '未连接';
-            status.className = 'model-status model-status-disconnected';
-        }
+        status.textContent = '未连接';
+        status.className = 'model-status model-status-disconnected';
     }
 }
 
 function testConnection() {
-    var apiKey;
+    // v27: 激活码模式直接走 Vercel 代理测试，不需要输入 API Key
     if (window.auth && window.auth.isActivated()) {
-        apiKey = getConfig().apiKey;
-    } else {
-        apiKey = $('apiKey').value.trim();
+        var btn = $('testConnBtn');
+        var original = btn.textContent;
+        btn.textContent = '测试中...';
+        btn.disabled = true;
+
+        if (!window.ai || !window.ai.testConnection) {
+            alert('⚠️ AI模块未加载，请强制刷新页面（Ctrl+F5）');
+            btn.textContent = original;
+            btn.disabled = false;
+            return;
+        }
+
+        // 激活码模式：不传 config，ai.js 会自动走 Vercel 代理
+        window.ai.testConnection().then(function(result) {
+            alert('✅ ' + result);
+            updateModelStatus();
+        }).catch(function(err) {
+            alert('❌ 连接失败：' + (err.message || '未知错误'));
+        }).then(function() {
+            btn.textContent = original;
+            btn.disabled = false;
+        });
+        return;
     }
+
+    // 自定义 Key 模式
+    var apiKey = $('apiKey').value.trim();
     var config = {
         apiKey: apiKey,
         baseUrl: $('baseUrl').value.trim(),
@@ -1410,7 +1445,7 @@ function testConnection() {
     };
 
     if (!config.apiKey) {
-        alert('请输入 API Key');
+        alert('请输入激活码或 API Key');
         return;
     }
 
@@ -1418,13 +1453,13 @@ function testConnection() {
     localStorage.setItem('aiConfig', JSON.stringify(config));
 
     var btn = $('testConnBtn');
-    var original = btn.textContent;
+    var original2 = btn.textContent;
     btn.textContent = '测试中...';
     btn.disabled = true;
 
     if (!window.ai || !window.ai.testConnection) {
         alert('⚠️ AI模块未加载，请强制刷新页面（Ctrl+F5）');
-        btn.textContent = original;
+        btn.textContent = original2;
         btn.disabled = false;
         return;
     }
@@ -1439,7 +1474,7 @@ function testConnection() {
     }).catch(function(err) {
         alert('❌ 连接失败：' + (err.message || '未知错误'));
     }).then(function() {
-        btn.textContent = original;
+        btn.textContent = original2;
         btn.disabled = false;
     });
 }
