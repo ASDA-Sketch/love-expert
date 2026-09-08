@@ -239,20 +239,25 @@ async function analyzeConversation(message, isConversation, contactId) {
 /**
  * 引用回复生成
  * v26: 增加全量聊天记录上下文，AI 综合整个对话生成回复
- * @param {string} quotedMessage - 对方最新说的那句话（自动获取，非手动选）
+ * v31: 增加 scenario——'reply'（对方最后发言，生成我的回复）/ 'followup'（最后一条是我发的、对方没回，生成我主动跟进的话）
+ * @param {string} quotedMessage - 对方最新说的话（reply 场景）；followup 场景下为"我"最后发的那句话
  * @param {string} style - 回复风格/意图
  * @param {string} customIntent - 当 style="guide_topic" 时，用户指定的目标话题（可选）
  * @param {number} contactId - 联系人ID（可选，传入则带历史上下文）
+ * @param {string} [scenario='reply'] - 场景：'reply' 或 'followup'
+ * @param {object} [followupInfo] - followup 场景信息 { lastThem, daysSince }
  * @returns {Promise<array>} 回复列表 [{content, reason}, ...]
  */
-async function generateReplies(quotedMessage, style, customIntent, contactId) {
+async function generateReplies(quotedMessage, style, customIntent, contactId, scenario, followupInfo) {
+  scenario = scenario === 'followup' ? 'followup' : 'reply';
+
   // 演示模式：返回预设样例
   if (isDemoMode()) {
     console.warn('[AI] generateReplies: returning DEMO replies (not real AI)');
     return window.DEMO_REPLIES[style] || window.DEMO_REPLIES['humor'];
   }
 
-  console.log('[AI] generateReplies: calling real AI with style=' + style + ' message="' + (quotedMessage||'').substring(0,30) + '"');
+  console.log('[AI] generateReplies: scenario=' + scenario + ' style=' + style + ' msg="' + (quotedMessage||'').substring(0,30) + '"');
 
   // v26: 获取更完整的上下文（50条消息）+ 完整联系人信息
   var context = '';
@@ -261,10 +266,15 @@ async function generateReplies(quotedMessage, style, customIntent, contactId) {
   }
 
   try {
-    var content = await callAI(
-      window.REPLY_SYSTEM_PROMPT,
-      window.buildReplyUserPrompt(quotedMessage, style, customIntent, context)
-    );
+    var systemPrompt, userPrompt;
+    if (scenario === 'followup') {
+      systemPrompt = window.FOLLOWUP_SYSTEM_PROMPT;
+      userPrompt = window.buildFollowupUserPrompt(context, style, customIntent, quotedMessage, followupInfo);
+    } else {
+      systemPrompt = window.REPLY_SYSTEM_PROMPT;
+      userPrompt = window.buildReplyUserPrompt(quotedMessage, style, customIntent, context);
+    }
+    var content = await callAI(systemPrompt, userPrompt);
     console.log('[AI] generateReplies: AI returned ' + content.length + ' chars');
     var result = extractJSON(content);
     if (Array.isArray(result)) {
