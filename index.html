@@ -12,16 +12,16 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <link rel="manifest" href="manifest.json?v=25">
+    <link rel="manifest" href="manifest.json?v=26">
     <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="icon" href="icon-192.png">
-    <link rel="stylesheet" href="style.css?v=25">
+    <link rel="stylesheet" href="style.css?v=26">
     <title>恋爱聊天助手</title>
     <script>
-    // v25: 清理批量导入弹窗，只保留文件上传 + 普通粘贴文本框
+    // v26: 修复复制功能 + 智能生成回复 + 聊天进度分析
     (function() {
         var VERSION_KEY = 'love_expert_sw_version';
-        var NEW_VERSION = 'v25';
+        var NEW_VERSION = 'v26';
         var currentVersion = localStorage.getItem(VERSION_KEY);
 
         // 每次版本升级时清理旧 SW 和缓存
@@ -43,7 +43,7 @@
         // 注册 no-op SW (v25) - 不监听 controllerchange，不自动 reload
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
-                navigator.serviceWorker.register('sw.js?v=25').catch(function(e) {
+                navigator.serviceWorker.register('sw.js?v=26').catch(function(e) {
                     console.warn('SW registration failed:', e);
                 });
             });
@@ -106,6 +106,7 @@
                         <button id="sendMeBtn" class="send-btn me-btn">我说</button>
                     </div>
                     <div class="chat-toolbar">
+                        <button id="smartReplyBtn" class="tool-btn primary-tool">🤖 生成回复</button>
                         <button id="analyzeBtn" class="tool-btn">🔍 分析对话</button>
                         <button id="topicsBtn" class="tool-btn">💡 推荐话题</button>
                         <button id="batchPasteBtn" class="tool-btn">📋 批量粘贴</button>
@@ -298,12 +299,12 @@
     </div>
 
     <!-- Scripts (loaded in order) -->
-    <script src="db.js?v=25"></script>
-    <script src="prompts.js?v=25"></script>
-    <script src="demo_data.js?v=25"></script>
-    <script src="ai.js?v=25"></script>
-    <script src="auth.js?v=25"></script>
-    <script src="import.js?v=25"></script>
-    <script src="app.js?v=25"></script>
+    <script src="db.js?v=26"></script>
+    <script src="prompts.js?v=26"></script>
+    <script src="demo_data.js?v=26"></script>
+    <script src="ai.js?v=26"></script>
+    <script src="auth.js?v=26"></script>
+    <script src="import.js?v=26"></script>
+    <script src="app.js?v=26"></script>
 </body>
 </html>
