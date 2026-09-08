@@ -1,11 +1,27 @@
 /**
- * 激活码认证模块 v27
- * 激活码存储在 Vercel 环境变量中，前端不暴露 API Key
- * 前端只发送激活码到 Vercel 代理验证，验证通过后存储激活码（不存 Key）
+ * 激活码认证模块（纯前端离线版 v29-standalone）
+ *
+ * 本版本不依赖任何后端服务器：激活码在浏览器本地校验，
+ * 校验通过后把该码对应的 DeepSeek Key 写入本地配置，
+ * 之后由 ai.js 直接在浏览器调用 DeepSeek（DeepSeek 已允许跨域）。
+ *
+ * ⚠️ 安全说明：纯前端方案下，激活码与 Key 的映射写在前端代码里，
+ *    技术上能被查看网页源码的人看到。此版本用于先跑通/自用；
+ *    后续接入 Cloudflare 后端代理后，Key 将移到服务端，前端不再暴露。
  */
 
-// Vercel API 代理地址（部署后替换为实际地址）
-var API_PROXY_URL = 'https://ai-ddadsa.vercel.app';
+// 激活码 -> DeepSeek Key 映射（5 组）
+var ACTIVATION_MAP = {
+    'ROSE-7K2M9': 'sk-a6271c823fbf4b6c8956d60762277e9d',
+    'ROSE-4R8X3': 'sk-56d518a9f2d143c6942fa6e569706b79',
+    'ROSE-3N6W7': 'sk-b779b4e94cf6450db9965a1aba1b02a2',
+    'ROSE-5Y2L8': 'sk-f2c96603ba07493a88a549b1753a8c33',
+    'ROSE-2J8F4': 'sk-acdb51225ff5428abcd88718a68aa0a2'
+};
+
+// 默认直连 DeepSeek 官方接口
+var DEFAULT_BASE_URL = 'https://api.deepseek.com/v1';
+var DEFAULT_MODEL = 'deepseek-chat';
 
 var AUTH_STORAGE_KEY = 'act_code';
 
@@ -26,38 +42,40 @@ function isActivated() {
 }
 
 /**
- * 应用激活码：发送到 Vercel 代理验证
+ * 应用激活码：本地校验，并写入对应的 API Key 配置
  * @param {string} code - 激活码
  * @returns {Promise<boolean>} 是否激活成功
  */
 async function applyActivation(code) {
-    try {
-        var response = await fetch(API_PROXY_URL + '/api/activate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code: code })
-        });
+    var normalized = String(code || '').trim().toUpperCase();
+    var key = ACTIVATION_MAP[normalized];
 
-        var data = await response.json();
-
-        if (data.success) {
-            localStorage.setItem(AUTH_STORAGE_KEY, code);
-            // 清除旧的 aiConfig（不再在前端存储 API Key）
-            localStorage.removeItem('aiConfig');
-            return true;
-        }
-
+    if (!key) {
         return false;
-    } catch (e) {
-        console.error('[Auth] Activation error:', e);
-        throw new Error('无法连接验证服务器，请检查网络或稍后重试');
     }
+
+    // 记录激活码
+    localStorage.setItem(AUTH_STORAGE_KEY, normalized);
+
+    // 写入对应的 API Key（ai.js 直连模式读取这份配置）
+    var config = {
+        apiKey: key,
+        baseUrl: DEFAULT_BASE_URL,
+        model: DEFAULT_MODEL
+    };
+    localStorage.setItem('aiConfig', JSON.stringify(config));
+    // 兼容旧字段
+    localStorage.setItem('api_key', key);
+    localStorage.setItem('base_url', DEFAULT_BASE_URL);
+    localStorage.setItem('model', DEFAULT_MODEL);
+
+    return true;
 }
 
-// 导出到 window 全局
+// 导出到 window 全局（保留 API_PROXY_URL 字段以兼容 app.js / ai.js 引用，此版本不再使用代理）
 window.auth = {
     getStoredCode: getStoredCode,
     isActivated: isActivated,
     applyActivation: applyActivation,
-    API_PROXY_URL: API_PROXY_URL
+    API_PROXY_URL: ''
 };
