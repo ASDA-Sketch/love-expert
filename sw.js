@@ -1,12 +1,12 @@
-// Service Worker v28 - No-op (pass-through)
-const CACHE_NAME = 'love-expert-v28';
+// Service Worker v29 - No-op (pass-through)
+const CACHE_NAME = 'love-expert-v29';
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.keys().then(function(keys) {
       return Promise.all(keys.map(function(k) { return caches.delete(k); }));
     }).then(function() {
-      console.log('SW v28: All caches cleared on install');
+      console.log('SW v29: All caches cleared on install');
     })
   );
   self.skipWaiting();
@@ -17,7 +17,7 @@ self.addEventListener('activate', (e) => {
     caches.keys().then(function(keys) {
       return Promise.all(keys.map(function(k) { return caches.delete(k); }));
     }).then(function() {
-      console.log('SW v28: All caches cleared on activate');
+      console.log('SW v29: All caches cleared on activate');
     })
   );
   self.clients.claim();
