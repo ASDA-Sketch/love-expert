@@ -12,16 +12,16 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <link rel="manifest" href="manifest.json?v=26">
+    <link rel="manifest" href="manifest.json?v=27">
     <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="icon" href="icon-192.png">
-    <link rel="stylesheet" href="style.css?v=26">
+    <link rel="stylesheet" href="style.css?v=27">
     <title>恋爱聊天助手</title>
     <script>
-    // v26: 修复复制功能 + 智能生成回复 + 聊天进度分析
+    // v27: 激活码迁移到 Vercel 后端代理，前端不暴露 API Key
     (function() {
         var VERSION_KEY = 'love_expert_sw_version';
-        var NEW_VERSION = 'v26';
+        var NEW_VERSION = 'v27';
         var currentVersion = localStorage.getItem(VERSION_KEY);
 
         // 每次版本升级时清理旧 SW 和缓存
@@ -43,7 +43,7 @@
         // 注册 no-op SW (v25) - 不监听 controllerchange，不自动 reload
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
-                navigator.serviceWorker.register('sw.js?v=26').catch(function(e) {
+                navigator.serviceWorker.register('sw.js?v=27').catch(function(e) {
                     console.warn('SW registration failed:', e);
                 });
             });
@@ -299,12 +299,12 @@
     </div>
 
     <!-- Scripts (loaded in order) -->
-    <script src="db.js?v=26"></script>
-    <script src="prompts.js?v=26"></script>
-    <script src="demo_data.js?v=26"></script>
-    <script src="ai.js?v=26"></script>
-    <script src="auth.js?v=26"></script>
-    <script src="import.js?v=26"></script>
-    <script src="app.js?v=26"></script>
+    <script src="db.js?v=27"></script>
+    <script src="prompts.js?v=27"></script>
+    <script src="demo_data.js?v=27"></script>
+    <script src="ai.js?v=27"></script>
+    <script src="auth.js?v=27"></script>
+    <script src="import.js?v=27"></script>
+    <script src="app.js?v=27"></script>
 </body>
 </html>
