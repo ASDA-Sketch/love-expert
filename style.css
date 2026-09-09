@@ -508,12 +508,9 @@ button {
     border-top: 1px solid var(--border);
     flex-shrink: 0;
     background: var(--card-bg);
-    width: 100%;
-    box-sizing: border-box;
-    min-width: 0;
 }
 
-.chat-input-row { display: flex; gap: 6px; min-width: 0; }
+.chat-input-row { display: flex; gap: 6px; }
 
 .message-input {
     flex: 1;
@@ -544,18 +541,12 @@ button {
 
 .chat-toolbar {
     display: flex;
-    flex-wrap: wrap;   /* 手机窄屏自动换行，避免最右侧“清空”按钮被挤出屏幕 */
-    gap: 6px;
+    gap: 8px;
     margin-top: 6px;
-    width: 100%;
-    box-sizing: border-box;
-    min-width: 0;
 }
 
 .tool-btn {
-    flex: 1 1 calc(50% - 3px);  /* 4 个小按钮两两一行，任意窄屏都放得下，不会溢出 */
-    min-width: 0;
-    padding: 8px 6px;
+    padding: 8px;
     border: 2px solid var(--border);
     border-radius: 8px;
     background: var(--card-bg);
@@ -564,14 +555,11 @@ button {
     cursor: pointer;
     transition: all 0.2s;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 .tool-btn:hover { border-color: var(--primary); color: var(--primary); }
 
-/* Primary tool button (生成回复) - stands out，单独占一整行更醒目 */
+/* Primary tool button (生成回复) - stands out */
 .tool-btn.primary-tool {
-    flex: 1 1 100%;  /* 智能回复独占一整行，最醒目 */
     background: var(--primary);
     color: #fff;
     border-color: var(--primary);
