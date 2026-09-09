@@ -28,15 +28,15 @@ function getAIConfig() {
 
 /**
  * 判断是否处于演示模式
- * v29: 如果已激活（激活码对应的 Key 已写入本地配置），浏览器直连 DeepSeek，不是 demo
+ * v27: 如果已激活（激活码在 localStorage），走 Vercel 代理，不是 demo
  * 如果有自定义 API Key，走直连，不是 demo
  * 否则是 demo 模式
  * @returns {boolean}
  */
 function isDemoMode() {
-  // 已激活（激活码对应的 Key 已写入本地配置）→ 浏览器直连，非 demo
+  // v27: 激活码模式 → 走 Vercel 代理
   if (window.auth && window.auth.isActivated && window.auth.isActivated()) {
-    console.log('[AI] Live mode (direct): activated');
+    console.log('[AI] Live mode (Vercel proxy): activated');
     return false;
   }
 
@@ -118,13 +118,43 @@ function extractJSON(text) {
 
 /**
  * 调用 AI
- * v29: 纯前端统一走浏览器直连 DeepSeek（激活码对应的 Key 已由 auth.js 写入本地配置）
+ * v27: 如果已激活，走 Vercel 代理（不暴露 API Key）
+ * 如果有自定义 API Key，走直连
  * @param {string} systemPrompt - 系统提示词
  * @param {string} userPrompt - 用户提示词
  * @returns {Promise<string>} AI 返回的文本内容
  */
 async function callAI(systemPrompt, userPrompt) {
-  // 纯前端版：统一走浏览器直连 DeepSeek（激活码对应的 Key 已由 auth.js 写入本地配置）
+  // v27: 激活码模式 → 走 Vercel 代理
+  if (window.auth && window.auth.isActivated && window.auth.isActivated()) {
+    var code = window.auth.getStoredCode();
+    var proxyUrl = window.auth.API_PROXY_URL + '/api/chat';
+
+    console.log('[AI] callAI via Vercel proxy');
+    var proxyResponse = await fetch(proxyUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: code,
+        systemPrompt: systemPrompt,
+        userPrompt: userPrompt
+      })
+    });
+
+    var proxyData = await proxyResponse.json();
+
+    if (proxyData.error) {
+      throw new Error(proxyData.error);
+    }
+
+    if (!proxyData.content) {
+      throw new Error('AI 返回内容为空');
+    }
+
+    return proxyData.content;
+  }
+
+  // 直连模式（用户自己的 API Key）
   var cfg = getAIConfig();
   var url = cfg.base_url.replace(/\/+$/, '') + '/chat/completions';
   var response = await fetch(url, {
@@ -239,25 +269,20 @@ async function analyzeConversation(message, isConversation, contactId) {
 /**
  * 引用回复生成
  * v26: 增加全量聊天记录上下文，AI 综合整个对话生成回复
- * v31: 增加 scenario——'reply'（对方最后发言，生成我的回复）/ 'followup'（最后一条是我发的、对方没回，生成我主动跟进的话）
- * @param {string} quotedMessage - 对方最新说的话（reply 场景）；followup 场景下为"我"最后发的那句话
+ * @param {string} quotedMessage - 对方最新说的那句话（自动获取，非手动选）
  * @param {string} style - 回复风格/意图
  * @param {string} customIntent - 当 style="guide_topic" 时，用户指定的目标话题（可选）
  * @param {number} contactId - 联系人ID（可选，传入则带历史上下文）
- * @param {string} [scenario='reply'] - 场景：'reply' 或 'followup'
- * @param {object} [followupInfo] - followup 场景信息 { lastThem, daysSince }
  * @returns {Promise<array>} 回复列表 [{content, reason}, ...]
  */
-async function generateReplies(quotedMessage, style, customIntent, contactId, scenario, followupInfo) {
-  scenario = scenario === 'followup' ? 'followup' : 'reply';
-
+async function generateReplies(quotedMessage, style, customIntent, contactId) {
   // 演示模式：返回预设样例
   if (isDemoMode()) {
     console.warn('[AI] generateReplies: returning DEMO replies (not real AI)');
     return window.DEMO_REPLIES[style] || window.DEMO_REPLIES['humor'];
   }
 
-  console.log('[AI] generateReplies: scenario=' + scenario + ' style=' + style + ' msg="' + (quotedMessage||'').substring(0,30) + '"');
+  console.log('[AI] generateReplies: calling real AI with style=' + style + ' message="' + (quotedMessage||'').substring(0,30) + '"');
 
   // v26: 获取更完整的上下文（50条消息）+ 完整联系人信息
   var context = '';
@@ -266,15 +291,10 @@ async function generateReplies(quotedMessage, style, customIntent, contactId, sc
   }
 
   try {
-    var systemPrompt, userPrompt;
-    if (scenario === 'followup') {
-      systemPrompt = window.FOLLOWUP_SYSTEM_PROMPT;
-      userPrompt = window.buildFollowupUserPrompt(context, style, customIntent, quotedMessage, followupInfo);
-    } else {
-      systemPrompt = window.REPLY_SYSTEM_PROMPT;
-      userPrompt = window.buildReplyUserPrompt(quotedMessage, style, customIntent, context);
-    }
-    var content = await callAI(systemPrompt, userPrompt);
+    var content = await callAI(
+      window.REPLY_SYSTEM_PROMPT,
+      window.buildReplyUserPrompt(quotedMessage, style, customIntent, context)
+    );
     console.log('[AI] generateReplies: AI returned ' + content.length + ' chars');
     var result = extractJSON(content);
     if (Array.isArray(result)) {
@@ -352,7 +372,27 @@ async function getProgressReminder(contactId) {
  * @returns {Promise<string>} 成功信息
  */
 async function testConnection(config) {
-  // 纯前端版：统一走浏览器直连 DeepSeek 测试（激活码对应的 Key 已在本地配置中）
+  // v27: 激活码模式 → 通过 Vercel 代理测试
+  if (window.auth && window.auth.isActivated && window.auth.isActivated()) {
+    var code = window.auth.getStoredCode();
+    var proxyUrl = window.auth.API_PROXY_URL + '/api/test';
+
+    var proxyResponse = await fetch(proxyUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code })
+    });
+
+    var proxyData = await proxyResponse.json();
+
+    if (proxyData.success) {
+      return '连接成功！模型：' + (proxyData.model || 'deepseek-chat') + '（通过激活码连接）';
+    }
+
+    throw new Error(proxyData.error || '连接失败');
+  }
+
+  // 直连模式测试
   var cfg = config || getAIConfig();
   if (!cfg || !cfg.api_key || !cfg.api_key.trim()) {
     throw new Error('请先填写 API Key');
