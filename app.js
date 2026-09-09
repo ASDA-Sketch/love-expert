@@ -7,7 +7,7 @@
 var currentContactId = null;
 var currentPanel = 'contacts';
 var generatedTopics = [];
-var replyState = { quotedMessage: '', style: '', customIntent: '', contactId: null, scenario: 'reply', followupInfo: null };
+var replyState = { quotedMessage: '', style: '', customIntent: '', contactId: null };
 var selectedScene = '刚认识';
 var editingContactId = null;
 
@@ -1151,36 +1151,23 @@ function openSmartReply() {
             return;
         }
 
-        var lastMsg = messages[messages.length - 1];
-
-        if (lastMsg.role === 'them') {
-            // 场景A：最后一条是对方发的 → 正常生成"我"的回复
-            openReplyPanel(lastMsg.content, 'reply', null);
-        } else {
-            // 场景B：最后一条是"我"发的，对方还没回 → 生成"我"主动跟进/续聊的话
-            // 找对方最后说过的一句话（作为背景，可能没有）
-            var lastThemMessage = '';
-            for (var j = messages.length - 1; j >= 0; j--) {
-                if (messages[j].role === 'them') {
-                    lastThemMessage = messages[j].content;
-                    break;
-                }
+        // 找到对方最后说的一句话
+        var lastThemMessage = '';
+        for (var i = messages.length - 1; i >= 0; i--) {
+            if (messages[i].role === 'them') {
+                lastThemMessage = messages[i].content;
+                break;
             }
-
-            // 距"我"最后一条过了几天
-            var daysSince = 0;
-            try {
-                var lastTime = new Date(lastMsg.created_at);
-                var nowTime = new Date();
-                daysSince = Math.floor((nowTime - lastTime) / (1000 * 60 * 60 * 24));
-                if (daysSince < 0) daysSince = 0;
-            } catch (e) { daysSince = 0; }
-
-            openReplyPanel(lastMsg.content, 'followup', {
-                lastThem: lastThemMessage,
-                daysSince: daysSince
-            });
         }
+
+        if (!lastThemMessage) {
+            // 如果没有对方消息，提示用户先输入对方说的话
+            alert('暂无对方消息，请先输入对方说的内容（点击"对方说"按钮）');
+            return;
+        }
+
+        // 打开回复面板，传入对方最新消息
+        openReplyPanel(lastThemMessage);
     }).catch(function(err) {
         btn.textContent = originalText;
         btn.disabled = false;
@@ -1188,39 +1175,19 @@ function openSmartReply() {
     });
 }
 
-function openReplyPanel(quotedMessage, scenario, followupInfo) {
+function openReplyPanel(quotedMessage) {
     if (!currentContactId) {
         alert('请先选择联系人');
         return;
     }
-
-    scenario = scenario === 'followup' ? 'followup' : 'reply';
 
     // Capture contactId at open time to prevent cross-contact note mixing
     replyState.contactId = currentContactId;
     replyState.quotedMessage = quotedMessage;
     replyState.style = 'auto';
     replyState.customIntent = '';
-    replyState.scenario = scenario;
-    replyState.followupInfo = followupInfo || null;
 
-    // 根据场景切换弹窗标题与引用区文案
-    var modalTitle = document.querySelector('#replyModal .modal-header h3');
-    var quotedLabel = $('quotedLabel');
-    var styleLabel = $('styleLabel');
-    if (scenario === 'followup') {
-        if (modalTitle) modalTitle.textContent = '对方还没回 · 主动跟进';
-        if (quotedLabel) quotedLabel.textContent = '当前情况';
-        if (styleLabel) styleLabel.textContent = '选择跟进风格';
-        var situation = '你最后说：「' + quotedMessage + '」\n对方暂时还没回复。下面是你可以主动发的话 👇';
-        $('quotedMessageBlock').textContent = situation;
-    } else {
-        if (modalTitle) modalTitle.textContent = '智能回复';
-        if (quotedLabel) quotedLabel.textContent = '对方消息';
-        if (styleLabel) styleLabel.textContent = '选择回复风格';
-        $('quotedMessageBlock').textContent = quotedMessage;
-    }
-
+    $('quotedMessageBlock').textContent = quotedMessage;
     $('customIntentGroup').classList.add('hidden');
     $('customIntent').value = '';
     $('repliesContent').innerHTML = '';
@@ -1257,9 +1224,7 @@ function generateReplies() {
         replyState.quotedMessage,
         style,
         replyState.customIntent,
-        contactId,
-        replyState.scenario,
-        replyState.followupInfo
+        contactId
     ).then(function(replies) {
         renderReplies(replies);
     }).catch(function(err) {
