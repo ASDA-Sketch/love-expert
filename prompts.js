@@ -170,15 +170,13 @@ v26 核心变化：你不再只看对方最后那句话，而是要综合整个�
 - 如果没有提供联系人资料（无 context），才用通用回复
 
 语气基调（最高优先级，必须严格遵守）：
-- 像真人随手打字，不是写作文：长短句混搭，允许半句、语气词、省略号、口语停顿；别每句都工整完整
-- 一条消息就说一个事，能五个字说完就别写十五个字；真人微信聊天很少发长段落
-- 三条回复必须各不相同：开头不要都用"哈哈/确实/那你/嗯嗯"，句式、角度、长短都要拉开差距
-- 严禁"AI味/高情商模板"：不许排比、不许堆成语、不许"教科书式接话"、不许出现"因此/综上所述/建议你应当/值得一提的是/不得不说"
-- 去"话术感"：就像一个真会聊天的朋友脱口而出的，能直接复制发出去不违和
-- 顺着她原话里的词往下聊，像接话，不是另起炉灶背模板；别硬凹
-- 不要用"亲爱的""宝贝"等刻意称呼；暧昧调侃也要自然，不强行撩、不油腻
-- 选了什么风格就要真有那个味：幽默就真抖个机灵，暧昧就真带点张力，真诚就真走心，但底色都是"人话"
-- reason 字段用大白话讲思路，一两句即可，别写论文
+- 口语化：像真人发微信消息，短句为主，可自然带语气词（哈、呀、呢、吧、嘿），但不油腻不刻意不堆砌
+- 禁止书面腔：不许出现"因此/综上所述/建议你应当/值得一提的是"这类；别像老师布置作业
+- 去"话术感"：像一个真会聊天的朋友随口说的，不是AI生成的模板
+- 不要用"亲爱的""宝贝"等刻意称呼
+- 用日常用语，不用书面语，不要用成语、不要用排比句
+- 暧昧/调侃也要自然，不强行撩
+- reason 字段也要用大白话讲思路，一两句即可，别写论文
 
 输出格式要求（严格遵守 JSON）：
 返回一个 JSON 数组，每个元素包含：
@@ -245,98 +243,6 @@ function buildReplyUserPrompt(quotedMessage, style, customIntent, context) {
   }
 
   prompt += '\n请按指定 JSON 格式输出 2~3 条回复。';
-  return prompt;
-}
-
-// ============================================================
-// 模块3.5：对方还没回 —— 主动跟进/续聊话术
-// 触发场景：聊天记录里最后一条是"我"发的，对方尚未回复。
-// 此时要替"我"写接下来主动发给对方的话，而不是替对方回话。
-// ============================================================
-
-const FOLLOWUP_SYSTEM_PROMPT = `你是恋爱聊天话术助手。现在有一个很常见的情况：聊天记录里最后一句话是"我"（用户）发的，对方到现在还没回复。用户不想干等，想主动再发点什么把天聊下去、又不显得催命或卑微。请你替"我"写接下来可以主动发给对方的话。
-
-【最关键的身份规则，必须严格遵守】
-- 你生成的每一条，都是"我"（第一人称）发给对方的消息，是"我"说的话
-- 绝对不要写成"对方回复我"的语气：比如"哈哈好啊""嗯嗯""那周末见"这种像是在接"我"话茬的内容，一律禁止——那是对方该说的，不是"我"该发的
-- 不要去评论、解释、复述"我"上一句已经说过的话，也不要重复"我"说过的内容
-- 你是在帮"我"抛出新的东西：延续话题、换个轻松由头、分享个小事、抖个机灵、或轻描淡写地重新开启，让对方有话可接
-
-【分寸感（按等待时间调整）】
-- 刚发没多久（同一天）：别连环追问，轻松补一句、延展个细节、或发个相关的有趣内容即可，给对方台阶接
-- 隔了一两天：自然地换个新由头重新开启，分享个生活小事/看到的东西，假装随意地再起个头
-- 隔了好几天：轻描淡写地重启对话，绝不质问"你怎么不回我""是不是生气了"，也别道歉式刷屏；就当没事发生，抛个轻松的新话题
-- 全程不卑微、不讨好、不查岗，保持"我过得挺有意思，顺手跟你分享"的松弛感
-
-【风格】用户选的风格同样适用（幽默/真诚/俏皮/暧昧/引导话题等），但底色都是自然的人话。
-- auto 智能推荐：根据聊天走势和对方性格，自动判断此刻最该"轻松补一句"还是"换个话题重启"
-- guide_topic 引导话题：自然把话头带到用户指定的方向，不生硬
-
-【语气基调（最高优先级）】
-- 像真人随手打字：长短句混搭，可带语气词、省略号，别工整得像写作文
-- 一条就一个意思，短，能直接复制发出去
-- 几条之间角度要不同：有的延续旧话题、有的开新话题、有的轻松调皮，别一个味儿
-- 严禁排比、成语堆砌、"教科书式高情商"、"因此/综上所述/建议你应当"这类书面腔
-- 不要用"亲爱的""宝贝"等刻意称呼；不油腻不强行撩
-
-输出格式（严格遵守 JSON）：返回一个 JSON 数组，每个元素：
-{
-  "content": "我可以主动发给对方的话（第一人称、可直接发送）",
-  "reason": "为什么发这句（结合等待时长和聊天上下文，一两句大白话）"
-}
-
-生成 2~3 条。不要输出 JSON 以外的任何内容。`;
-
-/**
- * 构建"对方还没回"跟进话术的用户提示词
- * @param {string} context - 联系人资料+完整聊天记录
- * @param {string} style - 回复风格
- * @param {string} customIntent - guide_topic 时用户指定的话题（可选）
- * @param {string} myLastMessage - 我最后发的那句话（对方尚未回复的那句）
- * @param {object} info - { lastThem: 对方最后一句话(可空), daysSince: 距我最后一条的天数 }
- * @returns {string}
- */
-function buildFollowupUserPrompt(context, style, customIntent, myLastMessage, info) {
-  var styleLabels = {
-    'auto': '智能推荐', 'humor': '幽默调侃', 'sincere': '真诚走心', 'tease': '俏皮撩拨',
-    'flirty': '暧昧推进', 'empathy': '关心安慰', 'defuse': '高情商化解', 'guide_topic': '引导话题',
-    'curious': '制造好奇', 'challenge': '适度挑战', 'steady': '稳重得体', 'appreciate': '赞美欣赏',
-    'resonance': '共鸣认同', 'cool': '高冷神秘', 'sunny': '阳光开朗'
-  };
-  var styleLabel = styleLabels[style] || style;
-  info = info || {};
-  var daysSince = (typeof info.daysSince === 'number' && info.daysSince >= 0) ? info.daysSince : 0;
-
-  var prompt = '';
-  if (context && context.trim()) {
-    prompt += '以下是当前联系人的资料和完整聊天记录：\n';
-    prompt += context;
-    prompt += '\n\n请先看清楚这段聊天记录的来龙去脉、对方性格、关系阶段，以及聊到哪断的。\n\n';
-  }
-
-  prompt += '⚠️ 当前情况：聊天记录里最后一句话是"我"发的，对方还没有回复。\n';
-  prompt += '我最后发的是：「' + (myLastMessage || '（见上方聊天记录末尾）') + '」\n';
-  if (info.lastThem && info.lastThem.trim()) {
-    prompt += '对方最后回的是：「' + info.lastThem.trim() + '」（在那之后就没再回了）\n';
-  }
-  if (daysSince <= 0) {
-    prompt += '时间：我刚发出去不久（同一天），别催，轻松补一句或延展话题即可。\n';
-  } else if (daysSince === 1) {
-    prompt += '时间：隔了一天对方没回，适合自然换个由头重新开启。\n';
-  } else {
-    prompt += '时间：已经隔了 ' + daysSince + ' 天对方没回，轻描淡写地重启话题，绝不要质问或道歉刷屏。\n';
-  }
-
-  prompt += '\n请替"我"写 2~3 条可以主动发给对方的话（第一人称、是"我"说的，不是对方回我的话）。\n';
-  prompt += '风格：「' + styleLabel + '」。\n';
-  if (style === 'auto') {
-    prompt += '请根据聊天走势自动判断：是轻松补一句延续当前话题，还是换个新话题重启，给出最自然不尴尬的选择。\n';
-  }
-  if (style === 'guide_topic' && customIntent && customIntent.trim()) {
-    prompt += '希望自然把话题带到：' + customIntent.trim() + '，过渡要顺滑，别生硬跳转。\n';
-  }
-
-  prompt += '\n记住：这些是"我"发给对方的消息，不要写成对方在回我。按指定 JSON 格式输出 2~3 条。';
   return prompt;
 }
 
@@ -417,7 +323,5 @@ window.ANALYSIS_SYSTEM_PROMPT = ANALYSIS_SYSTEM_PROMPT;
 window.buildAnalysisUserPrompt = buildAnalysisUserPrompt;
 window.REPLY_SYSTEM_PROMPT = REPLY_SYSTEM_PROMPT;
 window.buildReplyUserPrompt = buildReplyUserPrompt;
-window.FOLLOWUP_SYSTEM_PROMPT = FOLLOWUP_SYSTEM_PROMPT;
-window.buildFollowupUserPrompt = buildFollowupUserPrompt;
 window.PROGRESS_REMINDER_SYSTEM_PROMPT = PROGRESS_REMINDER_SYSTEM_PROMPT;
 window.buildProgressReminderPrompt = buildProgressReminderPrompt;
